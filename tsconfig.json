@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "commonjs",
+    //"module": "esnext",
+    "strict": true,
+    "jsx": "react-native",
+    "noEmit": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
+    //"moduleResolution": "bundler",
+    "allowJs": true
+  },
+  "include": [
+    "src/**/*",
+    "node_modules/@types/**/*",
+    "components/ESigning.tsx",
+    "components/InboxList.tsx",
+    "components/CashTransactionsScreen.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "babel.config.ts",
+    "metro.config.js",
+    "jest.config.js"
+  ],
+  "extends": "expo/tsconfig.base"
+}
