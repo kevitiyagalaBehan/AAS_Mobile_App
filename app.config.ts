@@ -22,6 +22,7 @@ export default {
         backgroundColor: "#ffffff",
         barStyle: "dark-content",
       },
+      package: "com.aas_mobile.AAS",
     },
     web: {
       favicon: "./assets/adaptive-icon.png",
