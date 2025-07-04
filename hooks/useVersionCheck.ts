@@ -19,7 +19,7 @@ export const useVersionCheck = () => {
     const check = async () => {
       try {
         const response = await fetch(
-          "https://raw.githubusercontent.com/kevitiyagalaBehan/PIMS-Mobile-App/main/version.json"
+          "https://raw.githubusercontent.com/kevitiyagalaBehan/AAS_Mobile_App/main/version.json"
         );
         const data = await response.json();
 
