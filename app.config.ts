@@ -5,7 +5,7 @@ export default {
     name: "AAS",
     slug: "AAS",
     owner: "aas_mobile",
-    version: "1.0.1",
+    version: "1.0.2",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
@@ -23,6 +23,7 @@ export default {
         barStyle: "dark-content",
       },
       package: "com.aas_mobile.AAS",
+      targetSdkVersion: 35,
     },
     web: {
       favicon: "./assets/adaptive-icon.png",
