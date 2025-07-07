@@ -19,7 +19,7 @@ export const useVersionCheck = () => {
     const check = async () => {
       try {
         const response = await fetch(
-          "https://raw.githubusercontent.com/kevitiyagalaBehan/AAS_Mobile_App/refs/heads/main/version.json?token=GHSAT0AAAAAADG5D7IBERP2JF7C4LXEPPOA2DLT6YA"
+          "https://raw.githubusercontent.com/kevitiyagalaBehan/AAS_Mobile_App/refs/heads/main/version.json"
         );
         const data = await response.json();
 
