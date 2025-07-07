@@ -21,7 +21,7 @@
     "base-64": "^1.0.0",
     "dayjs": "^1.11.13",
     "dotenv": "^16.5.0",
-    "expo": "^53.0.0",
+    "expo": "53.0.18",
     "expo-application": "~6.1.5",
     "expo-asset": "~11.1.7",
     "expo-dev-client": "~5.2.4",

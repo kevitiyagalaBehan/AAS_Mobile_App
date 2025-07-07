@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "target": "esnext",
-    "module": "commonjs",
-    //"module": "esnext",
+    //"module": "commonjs",
+    "module": "esnext",
     "strict": true,
     "jsx": "react-native",
     "noEmit": true,
@@ -11,8 +11,8 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "node",
-    //"moduleResolution": "bundler",
+    //"moduleResolution": "node",
+    "moduleResolution": "bundler",
     "allowJs": true
   },
   "include": [
