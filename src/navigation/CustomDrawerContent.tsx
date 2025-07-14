@@ -78,8 +78,8 @@ const getStyles = (width: number, height: number) =>
       borderBottomColor: "#ccc",
     },
     image: {
-      width: width * 1.2,
-      height: height * 0.06,
+      width: width * 1,
+      height: height * 0.08,
     },
     userName: {
       fontSize: RFPercentage(2),
