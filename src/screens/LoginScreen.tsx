@@ -118,7 +118,7 @@ export default function LoginScreen() {
 
         <TextInput
           style={styles.input}
-          placeholder="Enter Username"
+          placeholder="Enter username"
           onChangeText={setUsername}
           value={username}
           autoCapitalize="none"
@@ -128,7 +128,7 @@ export default function LoginScreen() {
         <View style={styles.passwordContainer}>
           <TextInput
             style={styles.passwordInput}
-            placeholder="Enter Password"
+            placeholder="Enter password"
             secureTextEntry={secureTextEntry}
             onChangeText={setPassword}
             value={password}
