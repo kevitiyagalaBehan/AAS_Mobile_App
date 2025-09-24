@@ -456,7 +456,7 @@ export default function Document() {
                 }}
                 contentContainerStyle={{
                   flexGrow: 1,
-                  paddingBottom: isScrollable ? height * 0.54 : 0,
+                  paddingBottom: isScrollable ? height * 0.6 : 0,
                 }}
                 showsVerticalScrollIndicator={false}
                 ListEmptyComponent={() => (

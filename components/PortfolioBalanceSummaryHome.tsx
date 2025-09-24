@@ -69,7 +69,7 @@ export default function PortfolioBalanceSummaryHome({ refreshTrigger }: Props) {
   }, [isFocused]);
 
   const chartWidth = width * 0.9;
-  const chartHeight = width * 0.8;
+  const chartHeight = height * 0.4;
   const styles = getStyles(width, height);
 
   if (loading) {
@@ -100,6 +100,12 @@ export default function PortfolioBalanceSummaryHome({ refreshTrigger }: Props) {
     setModalVisible(false);
   };
 
+  const maxValue = Math.max(...latestFiveData.map((item) => item.value));
+
+  const isMillion = maxValue >= 1_000_000;
+  const divisor = isMillion ? 1_000_000 : 1_000;
+  const suffix = isMillion ? "M" : "K";
+
   return (
     <View style={styles.container}>
       <View style={styles.border}>
@@ -111,19 +117,19 @@ export default function PortfolioBalanceSummaryHome({ refreshTrigger }: Props) {
               labels: latestFiveData.map((item) => `${item.year}`),
               datasets: [
                 {
-                  data: latestFiveData.map((item) => item.value / 1_000_000),
+                  data: latestFiveData.map((item) => item.value / divisor),
                 },
               ],
             }}
             width={chartWidth}
             height={chartHeight}
-            yAxisLabel="$"
-            yAxisSuffix="M"
+            yAxisLabel=""
+            yAxisSuffix={suffix}
             chartConfig={{
               backgroundColor: "#f5f5f5",
               backgroundGradientFrom: "#ffffff",
               backgroundGradientTo: "#ffffff",
-              decimalPlaces: 0,
+              decimalPlaces: 2,
               color: () => `rgba(195, 16, 231, 1)`,
               labelColor: () => `rgba(0, 0, 0, 1)`,
               barPercentage: 1,
@@ -133,10 +139,14 @@ export default function PortfolioBalanceSummaryHome({ refreshTrigger }: Props) {
                 strokeDasharray: "5,5",
               },
               propsForLabels: {
-                fontSize: RFPercentage(2),
+                fontSize: RFPercentage(1.7),
+              },
+              formatYLabel: (yValue: string) => {
+                const num = parseFloat(yValue);
+                return num.toFixed(2);
               },
             }}
-            fromZero={true}
+            fromZero
           />
           <Svg
             width={chartWidth}

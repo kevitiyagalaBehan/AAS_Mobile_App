@@ -22,7 +22,7 @@ export default function BottomTabOther() {
     <Tab.Navigator
       initialRouteName="HomeOther"
       screenOptions={{
-        tabBarStyle: { height: height * 0.08, paddingTop: height * 0.01, },
+        tabBarStyle: { height: height * 0.075, paddingTop: height * 0.01 },
         tabBarLabelStyle: { fontSize: RFPercentage(1.4), fontWeight: "bold" },
       }}
     >
