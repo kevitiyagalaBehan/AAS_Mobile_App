@@ -252,9 +252,19 @@ export default function Transactions() {
                   style={[styles.dataCell, styles.rightAlign, { flex: 1 }]}
                   numberOfLines={1}
                 >
-                  {item.balance.toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                  })}
+                  {(() => {
+                    let newBalance = item.balance;
+
+                    if (item.credit != null) {
+                      newBalance = item.balance - item.credit;
+                    } else if (item.debit != null) {
+                      newBalance = item.balance + item.debit;
+                    }
+
+                    return newBalance.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                    });
+                  })()}
                 </Text>
               </View>
             )}
@@ -265,7 +275,7 @@ export default function Transactions() {
             }}
             contentContainerStyle={{
               flexGrow: 1,
-              paddingBottom: isScrollable ? height * 1.16 : 20,
+              paddingBottom: isScrollable ? height * 1.2 : 20,
             }}
             ListEmptyComponent={() => (
               <Text style={styles.noData}>No transactions available</Text>
