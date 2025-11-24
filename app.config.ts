@@ -22,10 +22,17 @@ export default {
         backgroundColor: "#ffffff",
         barStyle: "dark-content",
       },
+      useNextNotificationsApi: true,
       package: "com.aas_mobile.AAS",
+      googleServicesFile: "./google-services.json"
     },
     web: {
       favicon: "./assets/adaptive-icon.png",
+    },
+    notification: {
+      android: {
+        googleSenderId: "399526131634"
+      }
     },
     plugins: [
       "expo-asset",
@@ -36,6 +43,13 @@ export default {
           image: "./assets/aas_splash_icon.png",
           imageWidth: 200,
           resizeMode: "contain",
+        },
+      ],
+      [
+        "expo-notifications",
+        {
+          icon: "./assets/notification_icon.png", 
+          color: "#ffffff",
         },
       ],
     ],

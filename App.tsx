@@ -9,12 +9,22 @@ import DrawerNavigatorOther from "./src/navigation/DrawerNavigatorOther";
 import DrawerNavigatorFamily from "./src/navigation/DrawerNavigatorFamily";
 import { useVersionCheck } from "./hooks/useVersionCheck";
 import UpdateModal from "./components/UpdateModal";
+import { registerForPushNotificationsAsync } from './src/utils/notification';
+import { useEffect } from "react";
 
 const Stack = createStackNavigator();
 
 function AppNavigator() {
   const { userData } = useAuth();
   const { forceBlock, updateUrl } = useVersionCheck();
+
+  useEffect(() => {
+    registerForPushNotificationsAsync().then(token => {
+      if (token) {
+        console.log('Device push token:', token);
+      }
+    });
+  }, []);
 
   const getInitialScreen = () => {
     if (!userData) return "Login";
