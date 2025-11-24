@@ -9,8 +9,8 @@ import DrawerNavigatorOther from "./src/navigation/DrawerNavigatorOther";
 import DrawerNavigatorFamily from "./src/navigation/DrawerNavigatorFamily";
 import { useVersionCheck } from "./hooks/useVersionCheck";
 import UpdateModal from "./components/UpdateModal";
-import { registerForPushNotificationsAsync } from './src/utils/notification';
-import { useEffect } from "react";
+// import { registerForPushNotificationsAsync } from "./src/utils/notification";
+// import { useEffect } from "react";
 
 const Stack = createStackNavigator();
 
@@ -18,13 +18,13 @@ function AppNavigator() {
   const { userData } = useAuth();
   const { forceBlock, updateUrl } = useVersionCheck();
 
-  useEffect(() => {
-    registerForPushNotificationsAsync().then(token => {
-      if (token) {
-        console.log('Device push token:', token);
-      }
-    });
-  }, []);
+  // useEffect(() => {
+  //   registerForPushNotificationsAsync().then((token) => {
+  //     if (token) {
+  //       console.log("Device push token:", token);
+  //     }
+  //   });
+  // }, []);
 
   const getInitialScreen = () => {
     if (!userData) return "Login";
@@ -33,27 +33,27 @@ function AppNavigator() {
 
   return (
     <>
-    <UpdateModal visible={forceBlock} updateUrl={updateUrl} />
+      <UpdateModal visible={forceBlock} updateUrl={updateUrl} />
       <NavigationContainer>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      <Stack.Navigator initialRouteName={getInitialScreen()}>
-        <Stack.Screen
-          name="Login"
-          component={LoginScreen}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="Other"
-          component={DrawerNavigatorOther}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="Family"
-          component={DrawerNavigatorFamily}
-          options={{ headerShown: false }}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+        <Stack.Navigator initialRouteName={getInitialScreen()}>
+          <Stack.Screen
+            name="Login"
+            component={LoginScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Other"
+            component={DrawerNavigatorOther}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Family"
+            component={DrawerNavigatorFamily}
+            options={{ headerShown: false }}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
     </>
   );
 }
