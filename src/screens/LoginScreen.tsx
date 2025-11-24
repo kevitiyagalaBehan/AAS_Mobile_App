@@ -17,10 +17,12 @@ import {
   loginUser,
   requestPasswordReset,
   getLinkedUsers,
+  savePushToken,
 } from "../utils/pimsApi";
 import { NavigationProps } from "../navigation/types";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { RFPercentage } from "react-native-responsive-fontsize";
+import { registerForPushNotificationsAsync } from "../utils/notification";
 
 export default function LoginScreen() {
   const { setUserData, setLoggedInUser } = useAuth();
@@ -53,6 +55,15 @@ export default function LoginScreen() {
         setLoggedInUser(linkedUser);
       } else {
         console.warn("No linked user found!");
+      }
+
+      const expoPushToken = await registerForPushNotificationsAsync();
+
+      if (expoPushToken) {
+        await savePushToken(accountId, expoPushToken, authToken);
+        console.log("Push token saved to backend:", expoPushToken);
+      } else {
+        console.warn("Failed to retrieve Expo push token");
       }
 
       const targetRoute = accountType === "Family Group" ? "Family" : "Other";
