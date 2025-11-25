@@ -20,7 +20,6 @@ import {
   InboxMessage,
   InboxStackNavigationProp,
   Messages,
-  NotifyRecipient,
   UserRecipient,
 } from "../src/navigation/types";
 import { RFPercentage } from "react-native-responsive-fontsize";
@@ -37,7 +36,6 @@ export default function InboxList() {
   const { userData, loggedInUser } = useAuth();
   const navigation = useNavigation<InboxStackNavigationProp<"InboxList">>();
   const [modalVisible, setModalVisible] = useState(false);
-  const [recipients, setRecipients] = useState<NotifyRecipient[]>([]);
   const [allRecipients, setAllRecipients] = useState<UserRecipient[]>([]);
   const [selectedRecipientIds, setSelectedRecipientIds] = useState<string[]>(
     []
@@ -98,7 +96,6 @@ export default function InboxList() {
         );
 
         if (result && result.length > 0) {
-          // Convert NotifyRecipient[] to UserRecipient[]
           const convertedRecipients: UserRecipient[] = result.map((r) => ({
             id: r.id,
             name: r.name,
