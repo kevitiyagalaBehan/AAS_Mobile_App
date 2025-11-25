@@ -13,6 +13,8 @@ export type AuthContextType = {
   setEntityAccounts: React.Dispatch<React.SetStateAction<AccountEntity[]>>;
   loggedInUser: LinkedUsers | null;
   setLoggedInUser: (user: LinkedUsers | null) => void;
+  pendingNavigation: PendingNavigation;
+  setPendingNavigation: (nav: PendingNavigation) => void;
 
   resetAuthState: () => void;
 };
@@ -24,8 +26,8 @@ export type AuthProviderProps = {
 // Root Stack Navigation
 export type RootStackParamList = {
   Login: undefined;
-  Other: undefined;
-  Family: undefined;
+  Other: { screen?: string; params?: object };
+  Family: { screen?: string; params?: object };
 };
 
 // Bottom Tab Navigation
@@ -74,6 +76,12 @@ export type SubScreenNavigationProp = StackNavigationProp<
   "Other" | "Family"
 >;
 
+export type PendingNavigation = {
+  userType: "Family" | "Other";
+  screen: string;
+  params: any;
+} | null;
+
 export type Props = {
   refreshing: boolean;
   refreshTrigger: number;
@@ -81,6 +89,11 @@ export type Props = {
 
 export type NavigationProps = {
   replace: (screen: string) => void;
+};
+
+export type InboxNotificationActionData = {
+  Subject: string;
+  MessageId: string;
 };
 
 export interface ClientAccountDetails {
