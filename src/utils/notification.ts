@@ -1,49 +1,53 @@
-import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import Constants from "expo-constants";
+import * as Notifications from "expo-notifications";
+import { Platform } from "react-native";
 
 export type ExpoPushToken = string | null;
 
 Notifications.setNotificationHandler({
-  handleNotification: async (): Promise<Notifications.NotificationBehavior> => ({
-    shouldShowAlert: true,    
-    shouldPlaySound: false,   
-    shouldSetBadge: false,
-    shouldShowBanner: true,  
-    shouldShowList: true, 
+  handleNotification: async () => ({
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
 export async function registerForPushNotificationsAsync(): Promise<ExpoPushToken> {
   try {
-    const existing = await Notifications.getPermissionsAsync();
-    let finalStatus = existing.status;
+    const { status: existingStatus } =
+      await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
 
-    if (existing.status !== 'granted') {
-      const req = await Notifications.requestPermissionsAsync();
-      finalStatus = req.status;
+    if (existingStatus !== "granted") {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
     }
 
-    if (finalStatus !== 'granted') {
-      console.warn('Push notifications permission not granted.');
+    if (finalStatus !== "granted") {
+      console.warn("Push notifications permission not granted.");
       return null;
     }
 
-    const tokenResult = await Notifications.getExpoPushTokenAsync();
-    const token = tokenResult.data;
-    console.log('Expo Push Token:', token);
+    const token = (
+      await Notifications.getExpoPushTokenAsync({
+        projectId: Constants.expoConfig?.extra?.eas?.projectId,
+      })
+    ).data;
+    //console.log("Expo Push Token:", token);
 
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'Default',
-        importance: Notifications.AndroidImportance.DEFAULT,
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync("default", {
+        name: "default",
+        importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#FF231F7C',
+        lightColor: "#FF231F7C",
       });
     }
 
     return token;
   } catch (error) {
-    console.error('registerForPushNotificationsAsync error', error);
+    console.error("registerForPushNotificationsAsync error", error);
     return null;
   }
 }
