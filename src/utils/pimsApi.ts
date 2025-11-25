@@ -47,7 +47,10 @@ export const loginUser = async (
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ 
+        username, 
+        password 
+      }),
     });
 
     const data = await response.json();
@@ -67,6 +70,7 @@ export const loginUser = async (
   }
 };
 
+
 export const requestPasswordReset = async (
   email: string
 ): Promise<ForgotPassword | null> => {
@@ -76,7 +80,9 @@ export const requestPasswordReset = async (
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ 
+        email 
+      }),
     });
 
     if (!response.ok) {
@@ -89,6 +95,7 @@ export const requestPasswordReset = async (
     throw error;
   }
 };
+
 
 export const getSuperFundName = async (
   authToken: string,
@@ -119,6 +126,7 @@ export const getSuperFundName = async (
   }
 };
 
+
 export const getLinkedUsers = async (
   authToken: string
 ): Promise<LinkedUsers | null> => {
@@ -144,6 +152,33 @@ export const getLinkedUsers = async (
     return null;
   }
 };
+
+
+export const savePushToken = async (
+  pushToken: string,
+  authToken: string
+): Promise<boolean> => {
+  try {
+    const response = await fetch(`${apiBaseUrl}/Auth/mobile/refresh_expo_token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({
+        expoToken: pushToken,
+      }),
+    });
+
+    const data = await response.json();
+    //console.log("Response JSON:", data);
+    return data.success === true;
+  } catch (error) {
+    console.error("Failed to save push token:", error);
+    return false;
+  }
+};
+
 
 export const getEntityAccounts = async (
   authToken: string,
@@ -181,6 +216,7 @@ export const getEntityAccounts = async (
     return parentAccount ? [parentAccount] : [];
   }
 };
+
 
 export const getAccountList = async (
   authToken: string,
@@ -221,6 +257,7 @@ export const getAccountList = async (
   }
 };
 
+
 export const getAssetAllocationSummaryOther = async (
   authToken: string,
   accountId: string
@@ -250,6 +287,7 @@ export const getAssetAllocationSummaryOther = async (
   }
 };
 
+
 export const getAssetAllocationSummaryFamily = async (
   authToken: string,
   accountId: string
@@ -277,6 +315,7 @@ export const getAssetAllocationSummaryFamily = async (
     return null;
   }
 };
+
 
 export const getSuperFundDetails = async (
   authToken: string,
@@ -313,6 +352,7 @@ export const getSuperFundDetails = async (
   }
 };
 
+
 export const getTopTenInvestmentDetails = async (
   authToken: string,
   accountId: string
@@ -345,6 +385,7 @@ export const getTopTenInvestmentDetails = async (
     return null;
   }
 };
+
 
 export const getTopTenInvestmentDetailsFamily = async (
   authToken: string,
@@ -379,6 +420,7 @@ export const getTopTenInvestmentDetailsFamily = async (
   }
 };
 
+
 export const getContributionCapSummary = async (
   authToken: string,
   accountId: string
@@ -406,6 +448,7 @@ export const getContributionCapSummary = async (
   }
 };
 
+
 export const getPensionLimitSummary = async (
   authToken: string,
   accountId: string
@@ -432,6 +475,7 @@ export const getPensionLimitSummary = async (
     return null;
   }
 };
+
 
 export const getEstimatedMemberStatement = async (
   authToken: string,
@@ -466,6 +510,7 @@ export const getEstimatedMemberStatement = async (
     return null;
   }
 };
+
 
 export const getInvestmentPerformance = async (
   authToken: string,
@@ -503,6 +548,7 @@ export const getInvestmentPerformance = async (
   }
 };
 
+
 export const getConsolidateData = async (
   authToken: string,
   accountId: string
@@ -535,6 +581,7 @@ export const getConsolidateData = async (
     return null;
   }
 };
+
 
 export const getClientAccountDetails = async (
   authToken: string,
@@ -569,6 +616,7 @@ export const getClientAccountDetails = async (
   }
 };
 
+
 export const getEsignDocuments = async (
   authToken: string,
   accountId: string
@@ -595,6 +643,7 @@ export const getEsignDocuments = async (
     throw error;
   }
 };
+
 
 export const getCashTransactions = async (
   authToken: string,
@@ -635,6 +684,7 @@ export const getCashTransactions = async (
   }
 };
 
+
 export const getMessages = async (
   authToken: string,
   accountId: string
@@ -661,6 +711,7 @@ export const getMessages = async (
     throw error;
   }
 };
+
 
 export const loadComments = async (
   authToken: string,
@@ -692,6 +743,7 @@ export const loadComments = async (
   }
 };
 
+
 export const sendComment = async (
   authToken: string,
   accountId: string,
@@ -708,7 +760,10 @@ export const sendComment = async (
           Authorization: `Bearer ${authToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ commentText: comment, UserId: userId }),
+        body: JSON.stringify({ 
+          commentText: comment, 
+          UserId: userId 
+        }),
       }
     );
 
@@ -722,6 +777,7 @@ export const sendComment = async (
     return false;
   }
 };
+
 
 export const deleteComment = async (
   authToken: string,
@@ -737,7 +793,9 @@ export const deleteComment = async (
           Authorization: `Bearer ${authToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ commentId }),
+        body: JSON.stringify({ 
+          commentId 
+        }),
       }
     );
 
@@ -747,6 +805,7 @@ export const deleteComment = async (
     return false;
   }
 };
+
 
 export const getInvestments = async (
   authToken: string,
@@ -780,6 +839,7 @@ export const getInvestments = async (
   }
 };
 
+
 export const getRelationships = async (
   authToken: string,
   accountId: string
@@ -808,6 +868,7 @@ export const getRelationships = async (
   }
 };
 
+
 export const getAASDocumentRoot = async (
   accountId: string,
   authToken: string
@@ -832,6 +893,7 @@ export const getAASDocumentRoot = async (
     return null;
   }
 };
+
 
 export const getFolderPath = async (
   path: string,
@@ -859,6 +921,7 @@ export const getFolderPath = async (
     return null;
   }
 };
+
 
 export const getAASDocuments = async (
   path: string,
@@ -894,6 +957,7 @@ export const getAASDocuments = async (
   }
 };
 
+
 export const getDocumentViewUrl = async (
   encodedPath: string,
   authToken: string
@@ -922,6 +986,7 @@ export const getDocumentViewUrl = async (
   }
 };
 
+
 export const getNotifyRecipient = async (
   authToken: string,
   accountId: string
@@ -949,6 +1014,7 @@ export const getNotifyRecipient = async (
   }
 };
 
+
 export const sendInboxMessage = async (
   authToken: string,
   accountId: string,
@@ -970,6 +1036,7 @@ export const sendInboxMessage = async (
     throw new Error(`Failed to send message: ${response.status}`);
   }
 };
+
 
 export const sendEmailNotification = async (
   authToken: string,
