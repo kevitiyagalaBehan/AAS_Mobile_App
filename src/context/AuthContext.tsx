@@ -5,6 +5,7 @@ import {
   AuthProviderProps,
   AccountEntity,
   LinkedUsers,
+  PendingNavigation,
 } from "../navigation/types";
 
 const AuthContext = createContext<AuthContextType>({
@@ -24,11 +25,16 @@ const AuthContext = createContext<AuthContextType>({
   loggedInUser: null,
   setLoggedInUser: () =>
     console.warn("setLoggedInUser called without AuthProvider"),
+  pendingNavigation: null,
+  setPendingNavigation: () =>
+    console.warn("setPendingNavigation called without AuthProvider"),
 });
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [userData, setUserData] = useState<LoginResponse | null>(null);
   const [loggedInUser, setLoggedInUser] = useState<LinkedUsers | null>(null);
+  const [pendingNavigation, setPendingNavigation] =
+    useState<PendingNavigation>(null);
   const [currentUserName, setCurrentUserName] = useState<string | null>(null);
   const [currentAccountName, setCurrentAccountName] = useState<string | null>(
     null
@@ -38,6 +44,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUserData(null);
     setCurrentUserName(null);
     setCurrentAccountName(null);
+    setPendingNavigation(null);
   };
 
   return (
@@ -54,6 +61,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         resetAuthState,
         loggedInUser,
         setLoggedInUser,
+        pendingNavigation,
+        setPendingNavigation,
       }}
     >
       {children}

@@ -23,9 +23,15 @@ import { NavigationProps } from "../navigation/types";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { RFPercentage } from "react-native-responsive-fontsize";
 import { registerForPushNotificationsAsync } from "../utils/notification";
+import { navigationRef } from "../navigation/RootNavigation";
 
 export default function LoginScreen() {
-  const { setUserData, setLoggedInUser } = useAuth();
+  const {
+    setUserData,
+    setLoggedInUser,
+    pendingNavigation,
+    setPendingNavigation,
+  } = useAuth();
   const { width, height } = useWindowDimensions();
   const [username, setUsername] = useState<string>("");
   const [password, setPassword] = useState<string>("");
@@ -60,14 +66,35 @@ export default function LoginScreen() {
       const expoPushToken = await registerForPushNotificationsAsync();
 
       if (expoPushToken) {
-        await savePushToken(accountId, expoPushToken, authToken);
-        console.log("Push token saved to backend:", expoPushToken);
+        await savePushToken(expoPushToken, authToken);
       } else {
         console.warn("Failed to retrieve Expo push token");
       }
 
-      const targetRoute = accountType === "Family Group" ? "Family" : "Other";
-      navigation.replace(targetRoute);
+      const userType = accountType === "Family Group" ? "Family" : "Other";
+
+      if (pendingNavigation) {
+        navigation.replace(userType);
+
+        setTimeout(() => {
+          navigationRef.navigate(userType, {
+            screen: "MainTabs",
+            params: {
+              screen: "Inbox",
+              params: {
+                screen: pendingNavigation.screen,
+                params: pendingNavigation.params,
+              },
+            },
+          });
+        }, 300);
+
+        setPendingNavigation(null);
+
+        return;
+      }
+
+      navigation.replace(userType);
     } catch (error: any) {
       Alert.alert("Login Error", error.message);
     }
