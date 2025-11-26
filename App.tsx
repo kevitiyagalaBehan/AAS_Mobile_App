@@ -9,7 +9,7 @@ import DrawerNavigatorOther from "./src/navigation/DrawerNavigatorOther";
 import DrawerNavigatorFamily from "./src/navigation/DrawerNavigatorFamily";
 import { useVersionCheck } from "./hooks/useVersionCheck";
 import UpdateModal from "./components/UpdateModal";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import * as Notifications from "expo-notifications";
 import { navigationRef } from "./src/navigation/RootNavigation";
 import { InboxNotificationActionData } from "./src/navigation/types";
@@ -60,7 +60,7 @@ function AppNavigator() {
 }
 
 function AppInner() {
-  const { userData, pendingNavigation, setPendingNavigation } = useAuth();
+  const { userData, setPendingNavigation } = useAuth();
   const isLoggedIn = !!userData?.authToken;
   const userType =
     userData?.accountType === "Family Group" ? "Family" : "Other";
