@@ -5,7 +5,7 @@ export default {
     name: "AAS",
     slug: "AAS",
     owner: "aas_mobile",
-    version: "1.0.4",
+    version: "1.0.6",
     orientation: "default",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
@@ -24,16 +24,19 @@ export default {
       },
       useNextNotificationsApi: true,
       package: "com.aas_mobile.AAS",
-      googleServicesFile: "./google-services.json"
+      googleServicesFile: "./google-services.json",
     },
     web: {
       favicon: "./assets/adaptive-icon.png",
     },
+
     notification: {
+      icon: "./assets/notification.png",
       android: {
-        googleSenderId: "399526131634"
-      }
+        googleSenderId: "399526131634",
+      },
     },
+
     plugins: [
       "expo-asset",
       [
@@ -48,7 +51,7 @@ export default {
       [
         "expo-notifications",
         {
-          icon: "./assets/notification_icon.png", 
+          icon: "./assets/notification.png",
           color: "#ffffff",
         },
       ],
