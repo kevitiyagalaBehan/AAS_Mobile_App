@@ -5,7 +5,7 @@ export default {
     name: "AAS",
     slug: "AAS",
     owner: "aas_mobile",
-    version: "1.0.6",
+    version: "1.0.7",
     orientation: "default",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
