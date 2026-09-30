@@ -4,6 +4,7 @@ import { RFPercentage } from "react-native-responsive-fontsize";
 import { PortfolioData, Props } from "../src/navigation/types";
 import { getAssetAllocationSummaryOther } from "../src/utils/pimsApi";
 import { useAuth } from "../src/context/AuthContext";
+import { getColorForAssetClass } from "../src/utils/assetColors";
 
 export default function PortfolioSummaryOther({ refreshTrigger }: Props) {
   const { userData } = useAuth();
@@ -83,6 +84,7 @@ export default function PortfolioSummaryOther({ refreshTrigger }: Props) {
                 percentage={category.percentage}
                 styles={styles}
                 isCategory
+                isTotal={index === dataWithTotal.length - 1}
               />
               {category.assetClasses?.map((subItem, idx) => (
                 <TableRow
@@ -91,6 +93,7 @@ export default function PortfolioSummaryOther({ refreshTrigger }: Props) {
                   marketValue={subItem.marketValue}
                   percentage={subItem.percentage}
                   styles={styles}
+                  bulletColor={getColorForAssetClass(subItem.assetClass)}
                 />
               ))}
             </View>
@@ -107,17 +110,26 @@ const TableRow = ({
   percentage,
   styles,
   isCategory = false,
+  isTotal = false,
+  bulletColor,
 }: {
   label: string;
   marketValue: number;
   percentage: number;
   styles: any;
   isCategory?: boolean;
+  isTotal?: boolean;
+  bulletColor?: string;
 }) => (
-  <View style={[styles.row, isCategory && styles.categoryRow]}>
-    <Text style={[styles.cell, isCategory && styles.boldText, { flex: 1 }]}>
-      {label}
-    </Text>
+  <View style={[styles.row, isTotal && styles.totalRow]}>
+    <View style={styles.labelCell}>
+      {bulletColor && (
+        <View style={[styles.bullet, { backgroundColor: bulletColor }]} />
+      )}
+      <Text style={[styles.cell, isCategory && styles.boldText, { flexShrink: 1 }]}>
+        {label}
+      </Text>
+    </View>
     <Text
       style={[
         styles.cell,
@@ -184,7 +196,6 @@ const getStyles = (width: number, height: number) =>
       backgroundColor: "#1B77BE",
       paddingVertical: height * 0.005,
       paddingHorizontal: width * 0.02,
-      marginBottom: height * 0.001,
     },
     tableHeaderText1: {
       color: "white",
@@ -204,11 +215,23 @@ const getStyles = (width: number, height: number) =>
       paddingHorizontal: width * 0.02,
       alignItems: "center",
       backgroundColor: "#fff",
-      borderWidth: 1,
-      borderColor: "#ccc",
+      borderBottomWidth: 1,
+      borderBottomColor: "#ccc",
     },
-    categoryRow: {
-      backgroundColor: "#ddd",
+    totalRow: {
+      borderTopWidth: 2,
+      borderTopColor: "#333",
+    },
+    labelCell: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    bullet: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      marginRight: 8,
     },
     rightAlign: {
       textAlign: "right",
