@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, useWindowDimensions } from "react-native";
 import React, { useState, useEffect } from "react";
-import { PieChart } from "react-native-chart-kit";
+import AssetAllocationDonut from "./AssetAllocationDonut";
 import { RFPercentage } from "react-native-responsive-fontsize";
 import { ChartData, PortfolioData, Props } from "../src/navigation/types";
 import { getAssetAllocationSummaryOther } from "../src/utils/pimsApi";
@@ -82,36 +82,7 @@ export default function AssetAllocationOther({ refreshTrigger }: Props) {
       <View style={styles.border}>
         <Text style={styles.bodyText}>Asset Allocation</Text>
         {chartData.length > 0 ? (
-          <View style={styles.chartContainer}>
-            <PieChart
-              data={chartData}
-              width={width * 1.0}
-              height={Math.min(height * 0.3, 220)}
-              chartConfig={{
-                backgroundColor: "#ffffff",
-                backgroundGradientFrom: "#ffffff",
-                backgroundGradientTo: "#ffffff",
-                color: (opacity = 1) => `rgba(0, 31, 91, ${opacity})`,
-              }}
-              accessor="percentage"
-              backgroundColor="transparent"
-              paddingLeft={`${width * 0.25}`}
-              absolute
-              hasLegend={false}
-            />
-            <View style={styles.legendContainer}>
-              {chartData.map((item, index) => (
-                <View key={index} style={styles.legendItem}>
-                  <View
-                    style={[styles.colorBox, { backgroundColor: item.color }]}
-                  />
-                  <Text style={styles.legendText}>
-                    {item.name}: {item.percentage.toFixed(2)}%
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </View>
+          <AssetAllocationDonut data={chartData} />
         ) : (
           <Text style={styles.noDataText}>
             No asset allocation data available
@@ -148,7 +119,7 @@ const getStyles = (width: number, height: number) =>
       //fontWeight: "bold",
       color: "#1B77BE",
       fontSize: RFPercentage(2.6),
-      marginBottom: -15,
+      marginTop: height * 0.008,
     },
     errorText: {
       color: "red",
@@ -162,30 +133,5 @@ const getStyles = (width: number, height: number) =>
       marginTop: height * 0.01,
       fontSize: RFPercentage(2),
       color: "#666",
-    },
-    chartContainer: {
-      alignItems: "center",
-    },
-    legendContainer: {
-      marginBottom: height * 0.01,
-      //flexDirection: "row",
-      //flexWrap: "wrap",
-      //justifyContent: "center",
-      alignItems: "flex-start",
-    },
-    legendItem: {
-      flexDirection: "row",
-      alignItems: "center",
-      width: "50%",
-    },
-    colorBox: {
-      width: 12,
-      height: 12,
-      marginRight: 8,
-      borderRadius: 3,
-    },
-    legendText: {
-      fontSize: RFPercentage(2),
-      color: "#000000",
     },
   });
