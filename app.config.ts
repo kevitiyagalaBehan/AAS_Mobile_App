@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import "dotenv/config";
 
 export default {
@@ -5,7 +6,7 @@ export default {
     name: "AAS",
     slug: "AAS",
     owner: "aas_mobile",
-    version: "1.0.7",
+    version: "1.0.8",
     orientation: "default",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
