@@ -121,7 +121,13 @@ const TableRow = ({
   isTotal?: boolean;
   bulletColor?: string;
 }) => (
-  <View style={[styles.row, isTotal && styles.totalRow]}>
+  <View
+    style={[
+      styles.row,
+      isCategory && styles.categoryRow,
+      isTotal && styles.totalRow,
+    ]}
+  >
     <View style={styles.labelCell}>
       {bulletColor && (
         <View style={[styles.bullet, { backgroundColor: bulletColor }]} />
@@ -217,6 +223,9 @@ const getStyles = (width: number, height: number) =>
       backgroundColor: "#fff",
       borderBottomWidth: 1,
       borderBottomColor: "#ccc",
+    },
+    categoryRow: {
+      borderBottomWidth: 0,
     },
     totalRow: {
       borderTopWidth: 2,
