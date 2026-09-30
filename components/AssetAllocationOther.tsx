@@ -5,6 +5,7 @@ import { RFPercentage } from "react-native-responsive-fontsize";
 import { ChartData, PortfolioData, Props } from "../src/navigation/types";
 import { getAssetAllocationSummaryOther } from "../src/utils/pimsApi";
 import { useAuth } from "../src/context/AuthContext";
+import { getColorForAssetClass } from "../src/utils/assetColors";
 
 export default function AssetAllocationOther({ refreshTrigger }: Props) {
   const { userData } = useAuth();
@@ -55,17 +56,6 @@ export default function AssetAllocationOther({ refreshTrigger }: Props) {
     );
     setChartData(processed);
   }, [data]);
-
-  const getColorForAssetClass = (assetClass: string) => {
-    const colorMap: { [key: string]: string } = {
-      Cash: "#5DA8A7",
-      "Aust. Equities": "#7AC2E1",
-      "Int. Equities": "#677EB5",
-      Property: "#A46E7E",
-      Other: "#EDBE72",
-    };
-    return colorMap[assetClass] || "#999";
-  };
 
   if (loading) {
     return <Text style={styles.loader}>Loading...</Text>;

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import AssetAllocationDonut from "./AssetAllocationDonut";
 import { RFPercentage } from "react-native-responsive-fontsize";
 import { ChartData, PortfolioData } from "../src/navigation/types";
+import { getColorForAssetClass } from "../src/utils/assetColors";
 
 export default function AssetAllocationFamily({
   data,
@@ -33,17 +34,6 @@ export default function AssetAllocationFamily({
     );
     setChartData(processed);
   }, [data]);
-
-  const getColorForAssetClass = (assetClass: string) => {
-    const colorMap: { [key: string]: string } = {
-      Cash: "#5DA8A7",
-      "Aust. Equities": "#7AC2E1",
-      "Int. Equities": "#677EB5",
-      Property: "#A46E7E",
-      Other: "#EDBE72",
-    };
-    return colorMap[assetClass] || "#999";
-  };
 
   const styles = getStyles(width, height);
 
