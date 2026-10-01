@@ -1,6 +1,6 @@
 import React from "react";
 import { createDrawerNavigator } from "@react-navigation/drawer";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import BottomTabFamily from "./BottomTabNavigatorFamily";
 import CustomDrawerContent from "./CustomDrawerContent";
 import { DrawerParamListFamily } from "./types";

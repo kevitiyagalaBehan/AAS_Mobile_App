@@ -9,6 +9,7 @@ import { RFPercentage } from "react-native-responsive-fontsize";
 import InboxStackNavigator from "./InboxStackNavigator";
 import { useWindowDimensions, View, Text } from "react-native";
 import { useESign } from "../context/ESignContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const Tab = createBottomTabNavigator<BottomTabParamListFamily>();
 
@@ -16,12 +17,17 @@ export default function BottomTabFamily() {
   const navigation = useNavigation();
   const { toBeSignedCount } = useESign();
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
       initialRouteName="HomeFamily"
       screenOptions={{
-        tabBarStyle: { height: height * 0.075, paddingTop: height * 0.01 },
+        tabBarStyle: {
+          height: height * 0.075 + insets.bottom,
+          paddingTop: height * 0.01,
+          paddingBottom: insets.bottom,
+        },
         tabBarLabelStyle: { fontSize: RFPercentage(1.4), fontWeight: "bold" },
       }}
     >

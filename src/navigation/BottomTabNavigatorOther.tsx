@@ -10,6 +10,7 @@ import { RFPercentage } from "react-native-responsive-fontsize";
 import InboxStackNavigator from "./InboxStackNavigator";
 import { useWindowDimensions, View, Text } from "react-native";
 import { useESign } from "../context/ESignContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const Tab = createBottomTabNavigator<BottomTabParamListOther>();
 
@@ -17,12 +18,18 @@ export default function BottomTabOther() {
   const navigation = useNavigation();
   const { toBeSignedCount } = useESign();
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const tabBarStyle = {
+    height: height * 0.075 + insets.bottom,
+    paddingTop: height * 0.008,
+    paddingBottom: insets.bottom,
+  };
 
   return (
     <Tab.Navigator
       initialRouteName="HomeOther"
       screenOptions={{
-        tabBarStyle: { height: height * 0.075, paddingTop: height * 0.008 },
+        tabBarStyle,
         tabBarLabelStyle: { fontSize: RFPercentage(1.4), fontWeight: "bold" },
       }}
     >
@@ -49,7 +56,7 @@ export default function BottomTabOther() {
             tabBarStyle:
               routeName === "InboxDetail"
                 ? { display: "none" }
-                : { height: height * 0.075, paddingTop: height * 0.008 },
+                : tabBarStyle,
             tabBarLabelStyle: {
               fontSize: RFPercentage(1.4),
               fontWeight: "bold",

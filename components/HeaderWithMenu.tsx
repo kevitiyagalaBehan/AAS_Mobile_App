@@ -37,10 +37,10 @@ export default function HeaderWithMenu() {
 
   return (
     <View style={styles.headerSection}>
-      <Drawer />
       <Text style={styles.accountNameText}>
         {currentAccountName || "Loading user..."}
       </Text>
+      <Drawer />
     </View>
   );
 }
@@ -48,15 +48,18 @@ export default function HeaderWithMenu() {
 const getStyles = (width: number, height: number) =>
   StyleSheet.create({
     headerSection: {
+      flexDirection: "row",
+      alignItems: "center",
       backgroundColor: "#fff",
       paddingHorizontal: width * 0.04,
       paddingTop: height * 0.02,
       paddingBottom: height * 0.015,
     },
     accountNameText: {
+      flex: 1,
       fontSize: RFPercentage(2.7),
       fontWeight: "bold",
       color: "#1B77BE",
-      marginBottom: height * 0.01,
+      marginRight: width * 0.03,
     },
   });

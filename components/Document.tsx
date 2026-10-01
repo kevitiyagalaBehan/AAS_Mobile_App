@@ -9,7 +9,7 @@ import {
   FlatList,
   Alert,
 } from "react-native";
-import { useState, useEffect } from "react";
+import { useState, useEffect, ComponentProps } from "react";
 import { RFPercentage } from "react-native-responsive-fontsize";
 import { useAuth } from "../src/context/AuthContext";
 import {
@@ -20,8 +20,10 @@ import {
 } from "../src/utils/pimsApi";
 import { Documents, Folders } from "../src/navigation/types";
 import { Base64 } from "js-base64";
-import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useRefreshTrigger } from "../hooks/useRefreshTrigger";
+
+type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
 
 export default function Document() {
   const { userData } = useAuth();
@@ -245,7 +247,7 @@ export default function Document() {
                 data={folders || []}
                 keyExtractor={(item, index) => `${item.name}-${index}`}
                 renderItem={({ item, index }) => {
-                  let iconName = "folder";
+                  let iconName: MaterialIconName = "folder";
                   let iconColor = "#FFD700";
 
                   if (item.type !== "FOLDER") {
@@ -351,7 +353,7 @@ export default function Document() {
                 data={documents}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item, index }) => {
-                  let iconName = "insert-drive-file";
+                  let iconName: MaterialIconName = "insert-drive-file";
                   let iconColor = "#757575";
 
                   const ext = item.extension?.toLowerCase();
