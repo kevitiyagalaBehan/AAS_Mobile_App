@@ -11,12 +11,12 @@ export const useAutoLogout = () => {
   const appState = useRef(AppState.currentState);
   const backgroundTime = useRef<number | null>(null);
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const { userData } = useAuth();
+  const { userData, resetAuthState } = useAuth();
 
   const logout = () => {
     console.log("Auto-logout due to background inactivity");
     if (userData?.authToken) {
-      handleLogout(navigation, false);
+      handleLogout(navigation, false, resetAuthState);
     }
   };
 

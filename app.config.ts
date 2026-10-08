@@ -6,7 +6,7 @@ export default {
     name: "AAS",
     slug: "AAS",
     owner: "aas_mobile",
-    version: "1.0.9",
+    version: "1.0.10",
     orientation: "default",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
@@ -40,6 +40,7 @@ export default {
 
     plugins: [
       "expo-asset",
+      "expo-secure-store",
       [
         "expo-splash-screen",
         {

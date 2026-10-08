@@ -5,16 +5,22 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { ESignProvider } from "./src/context/ESignContext";
 import LoginScreen from "./src/screens/LoginScreen";
+import PinLoginScreen from "./src/screens/PinLoginScreen";
+import PinSetupScreen from "./src/screens/PinSetupScreen";
 import DrawerNavigatorOther from "./src/navigation/DrawerNavigatorOther";
 import DrawerNavigatorFamily from "./src/navigation/DrawerNavigatorFamily";
 import { useVersionCheck } from "./hooks/useVersionCheck";
 import UpdateModal from "./components/UpdateModal";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { getLoginRoute } from "./src/utils/pinStorage";
 import * as Notifications from "expo-notifications";
 import { navigationRef } from "./src/navigation/RootNavigation";
-import { InboxNotificationActionData } from "./src/navigation/types";
+import {
+  InboxNotificationActionData,
+  RootStackParamList,
+} from "./src/navigation/types";
 
-const Stack = createStackNavigator();
+const Stack = createStackNavigator<RootStackParamList>();
 
 function AppNavigator() {
   const { userData } = useAuth();
@@ -28,8 +34,19 @@ function AppNavigator() {
   //   });
   // }, []);
 
+  const [loginRoute, setLoginRoute] = useState<"Login" | "PinLogin" | null>(
+    null
+  );
+
+  useEffect(() => {
+    getLoginRoute().then(setLoginRoute);
+  }, []);
+
+  // Wait until we know whether this device has a PIN, so the right login screen opens first.
+  if (!loginRoute) return null;
+
   const getInitialScreen = () => {
-    if (!userData) return "Login";
+    if (!userData) return loginRoute;
     return userData.accountType === "Family Group" ? "Family" : "Other";
   };
 
@@ -42,6 +59,16 @@ function AppNavigator() {
         <Stack.Screen
           name="Login"
           component={LoginScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PinLogin"
+          component={PinLoginScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PinSetup"
+          component={PinSetupScreen}
           options={{ headerShown: false }}
         />
         <Stack.Screen
@@ -92,7 +119,7 @@ function AppInner() {
             },
           });
 
-          navigationRef.navigate("Login");
+          getLoginRoute().then((route) => navigationRef.navigate(route));
           return;
         }
 

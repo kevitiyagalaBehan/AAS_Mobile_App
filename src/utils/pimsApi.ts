@@ -26,7 +26,10 @@ import {
   NotifyRecipient,
   InboxMessage,
   Folders,
+  RegisterPinResult,
+  PinLoginResult,
 } from "../navigation/types";
+import { Platform } from "react-native";
 import Constants from "expo-constants";
 import { Base64 } from "js-base64";
 import { Buffer } from "buffer";
@@ -93,6 +96,128 @@ export const requestPasswordReset = async (
   } catch (error) {
     console.error("Error requesting password reset:", error);
     throw error;
+  }
+};
+
+
+export const registerPin = async (
+  authToken: string,
+  deviceId: string,
+  pin: string
+): Promise<RegisterPinResult> => {
+  try {
+    const response = await fetch(`${apiBaseUrl}/Auth/mobile/pin/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({
+        deviceId,
+        pin,
+        platform: Platform.OS,
+        osVersion: String(Platform.Version),
+      }),
+    });
+
+    const data = await response.json();
+
+    if (data.success && data.device_token) {
+      return { success: true, deviceToken: data.device_token };
+    }
+
+    return {
+      success: false,
+      message: data.message || "Unable to set up PIN. Please try again.",
+    };
+  } catch (error) {
+    console.error("PIN registration failed:", error);
+    return {
+      success: false,
+      message: "Unable to set up PIN. Please check your connection.",
+    };
+  }
+};
+
+
+export const loginWithPin = async (
+  deviceId: string,
+  deviceToken: string,
+  pin: string
+): Promise<PinLoginResult> => {
+  try {
+    const response = await fetch(`${apiBaseUrl}/Auth/mobile/pin/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        deviceId,
+        deviceToken,
+        pin,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      return {
+        status: "success",
+        login: {
+          authToken: data.auth_token,
+          accountId: data.account_id,
+          accountType: data.account_type,
+        },
+        newDeviceToken: data.device_token ?? null,
+      };
+    }
+
+    if (data.pin_disabled) {
+      return {
+        status: "disabled",
+        message:
+          data.message ||
+          "PIN login has been disabled on this device. Please log in with your password.",
+      };
+    }
+
+    return {
+      status: "invalid",
+      message: data.message || "Incorrect PIN.",
+      remainingAttempts:
+        typeof data.remaining_attempts === "number"
+          ? data.remaining_attempts
+          : null,
+    };
+  } catch (error) {
+    console.error("PIN login failed:", error);
+    return {
+      status: "error",
+      message: "Unable to log in. Please check your connection.",
+    };
+  }
+};
+
+
+export const revokePin = async (
+  authToken: string,
+  deviceId: string
+): Promise<boolean> => {
+  try {
+    const response = await fetch(`${apiBaseUrl}/Auth/mobile/pin/revoke`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ deviceId }),
+    });
+
+    const data = await response.json();
+    return data.success === true;
+  } catch (error) {
+    console.error("PIN revoke failed:", error);
+    return false;
   }
 };
 
