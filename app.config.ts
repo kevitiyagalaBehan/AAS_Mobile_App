@@ -56,6 +56,15 @@ export default {
           color: "#ffffff",
         },
       ],
+      [
+        "expo-build-properties",
+        {
+          android: {
+            enableMinifyInReleaseBuilds: true,
+            enableShrinkResourcesInReleaseBuilds: true,
+          },
+        },
+      ],
     ],
     extra: {
       apiBaseUrl: process.env.API_BASE_URL,
