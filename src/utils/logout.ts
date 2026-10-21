@@ -1,6 +1,7 @@
 import { NavigationProp } from "@react-navigation/native";
 import { Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getLoginRoute } from "./pinStorage";
 
 export const handleLogout = async (
   navigation: NavigationProp<any>,
@@ -33,9 +34,12 @@ const performLogout = async (
       authContextReset();
     }
 
+    // The PIN registration lives in SecureStore, so it survives the AsyncStorage clear above.
+    const loginRoute = await getLoginRoute();
+
     navigation.reset({
       index: 0,
-      routes: [{ name: "Login" }],
+      routes: [{ name: loginRoute }],
     });
   } catch (error) {
     console.error("Logout failed:", error);

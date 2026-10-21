@@ -40,6 +40,7 @@ export default {
 
     plugins: [
       "expo-asset",
+      "expo-secure-store",
       [
         "expo-splash-screen",
         {
