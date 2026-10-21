@@ -17,14 +17,13 @@ import { RFPercentage } from "react-native-responsive-fontsize";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAuth } from "../context/AuthContext";
 import { handleLogout } from "../utils/logout";
-import { getLinkedUsers, revokePin } from "../utils/pimsApi";
+import { getLinkedUsers, revokePin, requestPasswordReset } from "../utils/pimsApi";
 import {
   clearPinRegistration,
   getPinRegistration,
   hasPinRegistration,
 } from "../utils/pinStorage";
 import { navigationRef } from "./RootNavigation";
-import { getLinkedUsers, requestPasswordReset } from "../utils/pimsApi";
 
 export default function CustomDrawerContent(props: any) {
   const { userData, setCurrentUserName, currentUserName, resetAuthState } =
@@ -94,6 +93,8 @@ export default function CustomDrawerContent(props: any) {
       { text: "Turn Off", style: "destructive", onPress: turnOffPin },
       { text: "Cancel", style: "cancel" },
     ]);
+  };
+
   const sendResetEmail = async (email: string) => {
     setSendingReset(true);
     try {
@@ -195,7 +196,6 @@ const getStyles = (width: number, height: number) =>
       marginTop: height * 0.01,
     },
     pinButton: {
-    resetPasswordButton: {
       flexDirection: "row",
       alignItems: "center",
       padding: 15,
@@ -203,6 +203,18 @@ const getStyles = (width: number, height: number) =>
       borderTopColor: "#ccc",
     },
     pinText: {
+      fontSize: RFPercentage(2),
+      color: "#00205A",
+      fontWeight: "bold",
+      marginLeft: width * 0.03,
+    },
+    resetPasswordButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 15,
+      borderTopWidth: 1,
+      borderTopColor: "#ccc",
+    },
     resetPasswordText: {
       fontSize: RFPercentage(2),
       color: "#00205A",
