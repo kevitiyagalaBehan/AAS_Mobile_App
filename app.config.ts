@@ -6,7 +6,7 @@ export default {
     name: "AAS",
     slug: "AAS",
     owner: "aas_mobile",
-    version: "1.0.10",
+    version: "1.0.11",
     orientation: "default",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
@@ -55,6 +55,15 @@ export default {
         {
           icon: "./assets/notification.png",
           color: "#ffffff",
+        },
+      ],
+      [
+        "expo-build-properties",
+        {
+          android: {
+            enableMinifyInReleaseBuilds: true,
+            enableShrinkResourcesInReleaseBuilds: true,
+          },
         },
       ],
     ],

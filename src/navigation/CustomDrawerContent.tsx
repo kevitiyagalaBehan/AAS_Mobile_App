@@ -24,6 +24,7 @@ import {
   hasPinRegistration,
 } from "../utils/pinStorage";
 import { navigationRef } from "./RootNavigation";
+import { getLinkedUsers, requestPasswordReset } from "../utils/pimsApi";
 
 export default function CustomDrawerContent(props: any) {
   const { userData, setCurrentUserName, currentUserName, resetAuthState } =
@@ -31,6 +32,8 @@ export default function CustomDrawerContent(props: any) {
   const { navigation } = props;
   const drawerStatus = useDrawerStatus();
   const [hasPin, setHasPin] = useState<boolean>(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [sendingReset, setSendingReset] = useState<boolean>(false);
   const { width, height } = useWindowDimensions();
   const styles = getStyles(width, height);
 
@@ -39,11 +42,13 @@ export default function CustomDrawerContent(props: any) {
       try {
         if (!userData?.authToken) {
           setCurrentUserName(null);
+          setUserEmail(null);
           return;
         }
 
         const userName = await getLinkedUsers(userData.authToken);
         setCurrentUserName(userName?.fullName || "User");
+        setUserEmail(userName?.emailAddress || null);
       } catch (error) {
         console.error("Failed to fetch user data:", error);
         setCurrentUserName("Error loading user");
@@ -89,6 +94,43 @@ export default function CustomDrawerContent(props: any) {
       { text: "Turn Off", style: "destructive", onPress: turnOffPin },
       { text: "Cancel", style: "cancel" },
     ]);
+  const sendResetEmail = async (email: string) => {
+    setSendingReset(true);
+    try {
+      const result = await requestPasswordReset(email);
+      if (!result) {
+        throw new Error("Unexpected Error");
+      }
+      Alert.alert(result.success ? "Success" : "Error", result.message);
+    } catch (error: any) {
+      Alert.alert(
+        "Error",
+        error.message || "Failed to send password reset request"
+      );
+    } finally {
+      setSendingReset(false);
+    }
+  };
+
+  const handleResetPasswordPress = () => {
+    if (sendingReset) return;
+
+    if (!userEmail) {
+      Alert.alert(
+        "Reset Password",
+        "We couldn't find the email address for your account. Please log out and use \"Forgot Password?\" on the login screen."
+      );
+      return;
+    }
+
+    Alert.alert(
+      "Reset Password",
+      `We'll send a password reset link to ${userEmail}.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Send", onPress: () => sendResetEmail(userEmail) },
+      ]
+    );
   };
 
   return (
@@ -110,6 +152,17 @@ export default function CustomDrawerContent(props: any) {
         <Ionicons name="keypad" size={26} color="#00205A" />
         <Text style={styles.pinText}>
           {hasPin ? "PIN Login" : "Set Up PIN Login"}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.resetPasswordButton}
+        onPress={handleResetPasswordPress}
+        disabled={sendingReset}
+      >
+        <Ionicons name="key" size={26} color="#00205A" />
+        <Text style={styles.resetPasswordText}>
+          {sendingReset ? "Sending..." : "Reset Password"}
         </Text>
       </TouchableOpacity>
 
@@ -142,6 +195,7 @@ const getStyles = (width: number, height: number) =>
       marginTop: height * 0.01,
     },
     pinButton: {
+    resetPasswordButton: {
       flexDirection: "row",
       alignItems: "center",
       padding: 15,
@@ -149,6 +203,7 @@ const getStyles = (width: number, height: number) =>
       borderTopColor: "#ccc",
     },
     pinText: {
+    resetPasswordText: {
       fontSize: RFPercentage(2),
       color: "#00205A",
       fontWeight: "bold",
