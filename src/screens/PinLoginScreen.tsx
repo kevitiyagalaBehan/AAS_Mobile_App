@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   useWindowDimensions,
+  ScrollView,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
@@ -106,52 +107,63 @@ export default function PinLoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Image
-        source={require("../../assets/aas_logo.png")}
-        style={styles.logo}
-        resizeMode="contain"
-      />
-
-      <Text style={styles.title}>
-        {registration?.displayName
-          ? `Welcome back, ${registration.displayName}`
-          : "Welcome back"}
-      </Text>
-      <Text style={styles.subtitle}>Enter your PIN to log in</Text>
-
-      <Text style={styles.errorText}>{error}</Text>
-
-      <PinPad
-        length={PIN_LENGTH}
-        value={pin}
-        onChange={handleChange}
-        disabled={!registration}
-        loading={loading}
-        error={!!error}
-      />
-
-      <TouchableOpacity
-        onPress={goToPasswordLogin}
-        disabled={loading}
-        style={styles.secondaryButton}
+    <SafeAreaView style={styles.safeArea}>
+      {/* Scrolls only when large text or display-size settings make the screen taller than the phone. */}
+      <ScrollView
+        contentContainerStyle={styles.container}
+        bounces={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.secondaryText}>
-          Forgot PIN? Log in with password
+        <Image
+          source={require("../../assets/aas_logo.png")}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+
+        <Text style={styles.title}>
+          {registration?.displayName
+            ? `Welcome back, ${registration.displayName}`
+            : "Welcome back"}
         </Text>
-      </TouchableOpacity>
+        <Text style={styles.subtitle}>Enter your PIN to log in</Text>
+
+        <Text style={styles.errorText}>{error}</Text>
+
+        <PinPad
+          length={PIN_LENGTH}
+          value={pin}
+          onChange={handleChange}
+          disabled={!registration}
+          loading={loading}
+          error={!!error}
+        />
+
+        <TouchableOpacity
+          onPress={goToPasswordLogin}
+          disabled={loading}
+          style={styles.secondaryButton}
+        >
+          <Text style={styles.secondaryText}>
+            Forgot PIN? Log in with password
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const getStyles = (width: number, height: number) =>
   StyleSheet.create({
-    container: {
+    safeArea: {
       flex: 1,
+      backgroundColor: "#fff",
+    },
+    container: {
+      flexGrow: 1,
       justifyContent: "center",
       alignItems: "center",
-      backgroundColor: "#fff",
       paddingHorizontal: 20,
+      paddingVertical: 16,
     },
     logo: {
       width: width * 0.5,

@@ -77,9 +77,11 @@ export const clearPinRegistration = async () => {
 export const getLoginRoute = async (): Promise<"Login" | "PinLogin"> =>
   (await hasPinRegistration()) ? "PinLogin" : "Login";
 
-// Rejects PINs that are trivially guessable: all one digit, or straight runs like 123456 / 654321.
+// Rejects PINs that are trivially guessable: all one digit (1111), a repeated pair (1212),
+// or a straight run (1234 / 4321).
 export const isWeakPin = (pin: string): boolean => {
   if (/^(\d)\1+$/.test(pin)) return true;
+  if (/^(\d\d)\1+$/.test(pin)) return true;
 
   const digits = pin.split("").map(Number);
   const ascending = digits.every((d, i) => i === 0 || d === digits[i - 1] + 1);
@@ -87,4 +89,4 @@ export const isWeakPin = (pin: string): boolean => {
   return ascending || descending;
 };
 
-export const PIN_LENGTH = 6;
+export const PIN_LENGTH = 4;
