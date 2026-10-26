@@ -123,6 +123,10 @@ export type RegisterPinResult =
   | { success: true; deviceToken: string }
   | { success: false; message: string };
 
+export type RevokePinResult =
+  | { success: true }
+  | { success: false; message: string };
+
 export type PinLoginResult =
   | { status: "success"; login: LoginResponse; newDeviceToken: string | null }
   | { status: "invalid"; message: string; remainingAttempts: number | null }

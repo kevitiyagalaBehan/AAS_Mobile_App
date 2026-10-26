@@ -69,11 +69,29 @@ export default function CustomDrawerContent(props: any) {
     navigationRef.navigate("PinSetup", { mode: "settings" });
   };
 
+  // Only forget the PIN on this phone once the server confirms it's revoked; otherwise the
+  // server keeps the registration and blocks the next user from setting up a PIN here.
   const turnOffPin = async () => {
     const registration = await getPinRegistration();
-    if (registration && userData?.authToken) {
-      await revokePin(userData.authToken, registration.deviceId);
+    if (!registration) {
+      setHasPin(false);
+      return;
     }
+
+    if (!userData?.authToken) {
+      Alert.alert(
+        "Session expired",
+        "Please log in again, then turn off PIN login."
+      );
+      return;
+    }
+
+    const result = await revokePin(userData.authToken, registration.deviceId);
+    if (!result.success) {
+      Alert.alert("PIN login is still on", result.message);
+      return;
+    }
+
     await clearPinRegistration();
     setHasPin(false);
     Alert.alert(

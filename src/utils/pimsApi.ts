@@ -28,6 +28,7 @@ import {
   Folders,
   RegisterPinResult,
   PinLoginResult,
+  RevokePinResult,
 } from "../navigation/types";
 import { Platform } from "react-native";
 import Constants from "expo-constants";
@@ -202,7 +203,7 @@ export const loginWithPin = async (
 export const revokePin = async (
   authToken: string,
   deviceId: string
-): Promise<boolean> => {
+): Promise<RevokePinResult> => {
   try {
     const response = await fetch(`${apiBaseUrl}/Auth/mobile/pin/revoke`, {
       method: "POST",
@@ -213,11 +214,32 @@ export const revokePin = async (
       body: JSON.stringify({ deviceId }),
     });
 
-    const data = await response.json();
-    return data.success === true;
+    // Read as text first so a non-JSON reply (e.g. an empty 401) reports its status code.
+    const body = await response.text();
+
+    let data: any = null;
+    try {
+      data = JSON.parse(body);
+    } catch {
+      // Not JSON; treated as a failure below.
+    }
+
+    if (data?.success === true) {
+      return { success: true };
+    }
+
+    return {
+      success: false,
+      message:
+        data?.message ||
+        `Couldn't turn off PIN login (error ${response.status}). Please try again.`,
+    };
   } catch (error) {
     console.error("PIN revoke failed:", error);
-    return false;
+    return {
+      success: false,
+      message: "Couldn't turn off PIN login. Please check your connection and try again.",
+    };
   }
 };
 
