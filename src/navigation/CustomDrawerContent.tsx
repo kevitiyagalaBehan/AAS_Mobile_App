@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   DrawerContentScrollView,
+  DrawerItem,
   DrawerItemList,
   useDrawerStatus,
 } from "@react-navigation/drawer";
@@ -24,11 +25,13 @@ import {
   hasPinRegistration,
 } from "../utils/pinStorage";
 import { navigationRef } from "./RootNavigation";
+import { DrawerMenuItem } from "./types";
 
 export default function CustomDrawerContent(props: any) {
   const { userData, setCurrentUserName, currentUserName, resetAuthState } =
     useAuth();
-  const { navigation } = props;
+  const { navigation, state, descriptors } = props;
+  const menuItems: DrawerMenuItem[] | undefined = props.menuItems;
   const drawerStatus = useDrawerStatus();
   const [hasPin, setHasPin] = useState<boolean>(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -152,6 +155,31 @@ export default function CustomDrawerContent(props: any) {
     );
   };
 
+  // Each menu item is a full-screen drawer screen; nothing is highlighted
+  // while the bottom tabs (MainTabs) are open.
+  const renderMenuItems = () => {
+    const focusedRoute = state.routes[state.index];
+    const { drawerItemStyle, drawerLabelStyle } =
+      descriptors[focusedRoute.key].options;
+
+    return menuItems!.map((item) => (
+      <DrawerItem
+        key={item.screen}
+        label={item.label}
+        focused={item.screen === focusedRoute.name}
+        style={drawerItemStyle}
+        labelStyle={drawerLabelStyle}
+        icon={({ color }) => (
+          <Ionicons name={item.icon as any} size={30} color={color} />
+        )}
+        onPress={() => {
+          navigation.navigate(item.screen);
+          navigation.closeDrawer();
+        }}
+      />
+    ));
+  };
+
   return (
     <DrawerContentScrollView {...props}>
       <View style={styles.headerContainer}>
@@ -165,7 +193,7 @@ export default function CustomDrawerContent(props: any) {
         </Text>
       </View>
 
-      <DrawerItemList {...props} />
+      {menuItems ? renderMenuItems() : <DrawerItemList {...props} />}
 
       <TouchableOpacity style={styles.pinButton} onPress={handlePinPress}>
         <Ionicons name="keypad" size={26} color="#00205A" />

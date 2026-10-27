@@ -34,7 +34,6 @@ export default function HomeScreenFamily() {
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
-        <Header />
         <ScrollView
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -45,6 +44,7 @@ export default function HomeScreenFamily() {
           }}
           showsVerticalScrollIndicator={false}
         >
+          <Header refreshTrigger={refreshTrigger} />
           <View style={styles.bodySection}>
             <ConsolidatedAssetAllocation
               data={data}

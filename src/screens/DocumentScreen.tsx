@@ -5,7 +5,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { Document, HeaderWithMenu } from "../../components";
+import { Document, ScreenTitle } from "../../components";
 
 export default function DocumentScreen() {
   const { width, height } = useWindowDimensions();
@@ -14,7 +14,7 @@ export default function DocumentScreen() {
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
-        <HeaderWithMenu />
+        <ScreenTitle title="Documents" />
           <View style={styles.bodySection}>
             <Document />
           </View>

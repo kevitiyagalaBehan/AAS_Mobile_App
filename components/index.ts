@@ -1,5 +1,6 @@
 export { default as Header } from "./Header";
-export { default as HeaderWithMenu } from "./HeaderWithMenu";
+export { default as ScreenTitle } from "./ScreenTitle";
+export { default as UserAvatar } from "./UserAvatar";
 export { default as PortfolioSummary } from "./PortfolioSummary";
 export { default as ConsolidatedAssetAllocation } from "./ConsolidatedAssetAllocation";
 export { default as AssetAllocationOther } from "./AssetAllocationOther";
@@ -15,7 +16,6 @@ export { default as InvestmentPerformance } from "./InvestmentPerformance";
 export { default as ConsolidatedAccounts } from "./ConsolidatedAccounts";
 export { default as AccountList } from "./AccountList";
 export { default as Details } from "./Details";
-export { default as Drawer } from "./Drawer";
 export { default as ESigning } from "./ESigning";
 export { default as CashTransactions } from "./CashTransactions";
 export { default as Portfolio } from "./Portfolio";

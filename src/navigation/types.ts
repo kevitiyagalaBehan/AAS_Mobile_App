@@ -38,23 +38,27 @@ export type BottomTabParamListOther = {
   HomeOther: { authToken: string; accountId: string };
   Inbox: { authToken: string; accountId: string };
   ESigning: { authToken: string; accountId: string };
-  Menu: { authToken: string; accountId: string };
+  Document: undefined;
 };
 
 export type BottomTabParamListFamily = {
   HomeFamily: { authToken: string; accountId: string };
   Inbox: { authToken: string; accountId: string };
   ESigning: { authToken: string; accountId: string };
-  Menu: { authToken: string; accountId: string };
 };
 
 // Drawer Navigation
 export type DrawerParamListOther = {
   MainTabs: { authToken: string; accountId: string };
-  Details: { authToken: string; accountId: string };
-  Transactions: { authToken: string; accountId: string };
-  Portfolio: { authToken: string; accountId: string };
-  Document: { authToken: string; accountId: string };
+  Details: undefined;
+  Transactions: undefined;
+  Portfolio: undefined;
+};
+
+export type DrawerMenuItem = {
+  label: string;
+  icon: string;
+  screen: string;
 };
 
 export type DrawerParamListFamily = {

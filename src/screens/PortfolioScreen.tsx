@@ -7,7 +7,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { HeaderWithMenu, Portfolio } from "../../components";
+import { Portfolio, ScreenTitle } from "../../components";
 import { useRefreshTrigger } from "../../hooks/useRefreshTrigger";
 
 export default function PortfolioScreen() {
@@ -19,7 +19,7 @@ export default function PortfolioScreen() {
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
-        <HeaderWithMenu />
+        <ScreenTitle title="Portfolio" showBack />
         <ScrollView
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />

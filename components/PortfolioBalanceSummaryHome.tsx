@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from "react";
-import {
-  Text,
-  View,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  useWindowDimensions,
-} from "react-native";
+import { Text, View, StyleSheet, useWindowDimensions } from "react-native";
 import { BarChart } from "react-native-chart-kit";
 import Svg, { Rect } from "react-native-svg";
 import { RFPercentage } from "react-native-responsive-fontsize";
 import { useAuth } from "../src/context/AuthContext";
 import { getSuperFundDetails } from "../src/utils/pimsApi";
-import { Props, PortfolioItem, SelectedData } from "../src/navigation/types";
+import { Props, PortfolioItem } from "../src/navigation/types";
 import { useIsFocused } from "@react-navigation/native";
+
+// react-native-chart-kit BarChart defaults (style.paddingRight is used as the left inset)
+const CHART_PADDING_LEFT = 64;
+const CHART_PADDING_TOP = 16;
+const BAR_WIDTH = 32;
+const TOOLTIP_WIDTH = 150;
+const TOOLTIP_HEIGHT = 50;
 
 export default function PortfolioBalanceSummaryHome({ refreshTrigger }: Props) {
   const { userData } = useAuth();
@@ -23,8 +23,7 @@ export default function PortfolioBalanceSummaryHome({ refreshTrigger }: Props) {
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedData, setSelectedData] = useState<SelectedData | null>(null);
-  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const isFocused = useIsFocused();
 
   const fetchData = async () => {
@@ -48,6 +47,7 @@ export default function PortfolioBalanceSummaryHome({ refreshTrigger }: Props) {
             dataDownDate: item.dataDownDate,
           }))
         );
+        setSelectedIndex(null);
       } else {
         setError("Failed to load data");
       }
@@ -64,7 +64,7 @@ export default function PortfolioBalanceSummaryHome({ refreshTrigger }: Props) {
 
   useEffect(() => {
     if (isFocused) {
-      setSelectedData(null);
+      setSelectedIndex(null);
     }
   }, [isFocused]);
 
@@ -87,24 +87,31 @@ export default function PortfolioBalanceSummaryHome({ refreshTrigger }: Props) {
   const sortedData = [...portfolioData].sort((a, b) => a.year - b.year);
   const latestFiveData = sortedData.slice(-5);
 
-  const handleBarPress = (item: PortfolioItem) => {
-    setSelectedData({
-      clientTotal: item.value,
-      dataDownDate: item.dataDownDate,
-      year: item.year,
-    });
-    setModalVisible(true);
-  };
-
-  const handleCloseModal = () => {
-    setModalVisible(false);
-  };
-
   const maxValue = Math.max(...latestFiveData.map((item) => item.value));
 
   const isMillion = maxValue >= 1_000_000;
   const divisor = isMillion ? 1_000_000 : 1_000;
   const suffix = isMillion ? "M" : "K";
+
+  // Mirrors react-native-chart-kit's BarChart bar layout (with fromZero)
+  // so taps map to the bar that is actually drawn.
+  const slotWidth = (chartWidth - CHART_PADDING_LEFT) / latestFiveData.length;
+  const barX = (index: number) =>
+    CHART_PADDING_LEFT + index * slotWidth + BAR_WIDTH / 2;
+  const barY = (value: number) =>
+    CHART_PADDING_TOP +
+    0.75 * chartHeight * (1 - Math.max(value, 0) / (maxValue || 1));
+  const plotBottom = 0.75 * chartHeight + CHART_PADDING_TOP;
+
+  const selectAt = (touchX: number) => {
+    const index = Math.floor((touchX - CHART_PADDING_LEFT) / slotWidth);
+    setSelectedIndex(Math.min(Math.max(index, 0), latestFiveData.length - 1));
+  };
+
+  const selected =
+    selectedIndex !== null && selectedIndex < latestFiveData.length
+      ? latestFiveData[selectedIndex]
+      : null;
 
   return (
     <View style={styles.container}>
@@ -148,69 +155,59 @@ export default function PortfolioBalanceSummaryHome({ refreshTrigger }: Props) {
             }}
             fromZero
           />
-          <Svg
-            width={chartWidth}
-            height={chartHeight}
+          {selected && selectedIndex !== null && (
+            <Svg
+              width={chartWidth}
+              height={chartHeight}
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
+            >
+              <Rect
+                x={barX(selectedIndex) - 3}
+                y={barY(selected.value) - 3}
+                width={BAR_WIDTH + 6}
+                height={Math.max(plotBottom - barY(selected.value), 0) + 3}
+                fill="none"
+                stroke="#0B1F44"
+                strokeWidth={2}
+                rx={3}
+              />
+            </Svg>
+          )}
+          <View
             style={StyleSheet.absoluteFill}
-          >
-            {latestFiveData.map((item, index) => {
-              const barWidth = chartWidth / latestFiveData.length - 20;
-              const x = (chartWidth * index) / latestFiveData.length + 15;
-              const y = chartHeight - (item.value / 1_000_000) * 200;
-
-              return (
-                <Rect
-                  key={index}
-                  x={x}
-                  y={y}
-                  width={barWidth}
-                  height={chartHeight - y}
-                  fill="transparent"
-                  onPress={() => handleBarPress(item)}
-                />
-              );
-            })}
-          </Svg>
-        </View>
-
-        <Modal
-          animationType="fade"
-          transparent={true}
-          visible={modalVisible}
-          onRequestClose={handleCloseModal}
-        >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              {selectedData && (
-                <>
-                  <Text style={styles.modalTitle}>
-                    Year {selectedData.year}
-                  </Text>
-                  <View style={styles.modalRow}>
-                    <Text style={styles.modalLabel}>Client Total:</Text>
-                    <Text style={styles.modalText}>
-                      ${selectedData.clientTotal.toLocaleString()}
-                    </Text>
-                  </View>
-                  <View style={styles.modalRow}>
-                    <Text style={styles.modalLabel}>Down Date:</Text>
-                    <Text style={styles.modalText}>
-                      {new Date(selectedData.dataDownDate).toLocaleDateString(
-                        "en-GB"
-                      )}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.closeButton}
-                    onPress={handleCloseModal}
-                  >
-                    <Text style={styles.closeButtonText}>Close</Text>
-                  </TouchableOpacity>
-                </>
-              )}
+            onStartShouldSetResponder={() => true}
+            onMoveShouldSetResponder={() => true}
+            onResponderTerminationRequest={() => false}
+            onResponderGrant={(e) => selectAt(e.nativeEvent.locationX)}
+            onResponderMove={(e) => selectAt(e.nativeEvent.locationX)}
+          />
+          {selected && selectedIndex !== null && (
+            <View
+              pointerEvents="none"
+              style={[
+                styles.tooltip,
+                {
+                  left: Math.min(
+                    Math.max(
+                      barX(selectedIndex) + BAR_WIDTH / 2 - TOOLTIP_WIDTH / 2,
+                      0
+                    ),
+                    chartWidth - TOOLTIP_WIDTH
+                  ),
+                  top: Math.max(barY(selected.value) - TOOLTIP_HEIGHT - 8, 0),
+                },
+              ]}
+            >
+              <Text style={styles.tooltipDate}>
+                {new Date(selected.dataDownDate).toLocaleDateString("en-GB")}
+              </Text>
+              <Text style={styles.tooltipValue}>
+                ${selected.value.toLocaleString()}
+              </Text>
             </View>
-          </View>
-        </Modal>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -264,48 +261,29 @@ const getStyles = (width: number, height: number) =>
       fontSize: RFPercentage(2),
       textAlign: "center",
     },
-    modalContainer: {
-      flex: 1,
+    tooltip: {
+      position: "absolute",
+      width: TOOLTIP_WIDTH,
+      height: TOOLTIP_HEIGHT,
       justifyContent: "center",
       alignItems: "center",
-      backgroundColor: "rgba(0,0,0,0.5)",
+      backgroundColor: "#fff",
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: "#E5E7EB",
+      shadowColor: "#000",
+      shadowOpacity: 0.12,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 3,
     },
-    modalContent: {
-      width: width * 0.8,
-      backgroundColor: "white",
-      borderRadius: 10,
-      padding: width * 0.05,
+    tooltipDate: {
+      fontSize: RFPercentage(1.5),
+      color: "#6B7280",
     },
-    modalTitle: {
-      fontSize: RFPercentage(2.5),
+    tooltipValue: {
+      fontSize: RFPercentage(1.9),
       fontWeight: "bold",
-      color: "#1B77BE",
-      marginBottom: height * 0.02,
-      textAlign: "center",
-    },
-    modalRow: {
-      flexDirection: "row",
-      marginBottom: height * 0.015,
-    },
-    modalLabel: {
-      fontWeight: "bold",
-      width: width * 0.3,
-      fontSize: RFPercentage(2),
-    },
-    modalText: {
-      flex: 1,
-      fontSize: RFPercentage(2),
-    },
-    closeButton: {
-      marginTop: height * 0.02,
-      backgroundColor: "#1B77BE",
-      padding: width * 0.03,
-      borderRadius: 5,
-      alignItems: "center",
-    },
-    closeButtonText: {
-      color: "white",
-      fontWeight: "bold",
-      fontSize: RFPercentage(2),
+      color: "#0B1F44",
     },
   });

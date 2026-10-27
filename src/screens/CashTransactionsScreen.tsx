@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { HeaderWithMenu, CashTransactions } from "../../components";
+import { CashTransactions, ScreenTitle } from "../../components";
 
 export default function CashTransactionsScreen() {
   const { width, height } = useWindowDimensions();
@@ -10,7 +10,7 @@ export default function CashTransactionsScreen() {
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
-        <HeaderWithMenu />
+        <ScreenTitle title="Bank" showBack />
         <View style={styles.bodySection}>
           <CashTransactions />
         </View>

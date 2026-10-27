@@ -17,7 +17,9 @@ export default function DrawerNavigatorFamily() {
 
   return (
     <Drawer.Navigator
-      drawerContent={(props) => <CustomDrawerContent {...props} />}
+      drawerContent={(props) => (
+        <CustomDrawerContent {...props} menuItems={[]} />
+      )}
       screenOptions={{
         drawerPosition: "right",
         headerShown: false,

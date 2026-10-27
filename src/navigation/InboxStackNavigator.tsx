@@ -14,9 +14,10 @@ export default function InboxStackNavigator() {
         //headerShown: true,
         headerTitleStyle: {
           fontSize: RFPercentage(2.6),
-          color: "#1B77BE",
+          color: "#0B1F44",
           fontWeight: "bold",
         },
+        headerTintColor: "#0B1F44",
         headerStyle: {
           elevation: 0,
           shadowOpacity: 0,

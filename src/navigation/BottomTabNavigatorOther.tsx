@@ -1,10 +1,10 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
-import { DrawerActions, useNavigation } from "@react-navigation/native";
 import { getFocusedRouteNameFromRoute } from "@react-navigation/native";
 import HomeScreenOther from "../screens/HomeScreenOther";
 import ESigningScreen from "../screens/ESigningScreen";
+import DocumentScreen from "../screens/DocumentScreen";
 import { BottomTabParamListOther } from "./types";
 import { RFPercentage } from "react-native-responsive-fontsize";
 import InboxStackNavigator from "./InboxStackNavigator";
@@ -15,7 +15,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 const Tab = createBottomTabNavigator<BottomTabParamListOther>();
 
 export default function BottomTabOther() {
-  const navigation = useNavigation();
   const { toBeSignedCount } = useESign();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -103,19 +102,14 @@ export default function BottomTabOther() {
         }}
       />
       <Tab.Screen
-        name="Menu"
-        component={HomeScreenOther}
+        name="Document"
+        component={DocumentScreen}
         options={{
-          tabBarLabel: "Menu",
+          headerShown: false,
+          tabBarLabel: "Documents",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="menu" size={size} color={color} />
+            <Ionicons name="documents" size={size} color={color} />
           ),
-        }}
-        listeners={{
-          tabPress: (e) => {
-            e.preventDefault();
-            navigation.dispatch(DrawerActions.openDrawer());
-          },
         }}
       />
     </Tab.Navigator>

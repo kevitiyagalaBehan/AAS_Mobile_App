@@ -1,7 +1,6 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
-import { DrawerActions, useNavigation } from "@react-navigation/native";
 import HomeScreenFamily from "../screens/HomeScreenFamily";
 import ESigningScreen from "../screens/ESigningScreen";
 import { BottomTabParamListFamily } from "./types";
@@ -14,7 +13,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 const Tab = createBottomTabNavigator<BottomTabParamListFamily>();
 
 export default function BottomTabFamily() {
-  const navigation = useNavigation();
   const { toBeSignedCount } = useESign();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -86,22 +84,6 @@ export default function BottomTabFamily() {
               )}
             </View>
           ),
-        }}
-      />
-      <Tab.Screen
-        name="Menu"
-        component={HomeScreenFamily}
-        options={{
-          tabBarLabel: "Menu",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="menu" size={size} color={color} />
-          ),
-        }}
-        listeners={{
-          tabPress: (e) => {
-            e.preventDefault();
-            navigation.dispatch(DrawerActions.openDrawer());
-          },
         }}
       />
     </Tab.Navigator>

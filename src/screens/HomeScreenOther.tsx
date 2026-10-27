@@ -28,7 +28,6 @@ export default function HomeScreenOther() {
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
-        <Header />
         <ScrollView
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -39,6 +38,7 @@ export default function HomeScreenOther() {
           }}
           showsVerticalScrollIndicator={false}
         >
+          <Header refreshTrigger={refreshTrigger} />
           <View style={styles.bodySection}>
             <PortfolioSummary
               refreshTrigger={refreshTrigger}
