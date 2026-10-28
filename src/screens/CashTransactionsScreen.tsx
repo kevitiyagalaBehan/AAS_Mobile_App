@@ -1,19 +1,35 @@
 import React from "react";
-import { StyleSheet, useWindowDimensions, View } from "react-native";
+import {
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { CashTransactions, ScreenTitle } from "../../components";
+import { useRefreshTrigger } from "../../hooks/useRefreshTrigger";
 
 export default function CashTransactionsScreen() {
   const { width, height } = useWindowDimensions();
+  const { refreshTrigger, refreshing, onRefresh } = useRefreshTrigger();
   const styles = getStyles(width);
 
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
-        <ScreenTitle title="Bank" showBack />
-        <View style={styles.bodySection}>
-          <CashTransactions />
-        </View>
+        <ScrollView
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          contentContainerStyle={{ paddingBottom: height * 0.03 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <ScreenTitle title="Bank" showBack />
+          <View style={styles.bodySection}>
+            <CashTransactions refreshTrigger={refreshTrigger} />
+          </View>
+        </ScrollView>
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -23,8 +39,9 @@ const getStyles = (width: number) =>
   StyleSheet.create({
     container: {
       flex: 1,
+      backgroundColor: "#eee",
     },
     bodySection: {
-      paddingHorizontal: width * 0.02,
+      paddingHorizontal: width * 0.03,
     },
   });

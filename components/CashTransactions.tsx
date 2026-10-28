@@ -1,540 +1,572 @@
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Modal,
-  FlatList,
+  Platform,
+  Pressable,
+  ScrollView,
+  ActivityIndicator,
   useWindowDimensions,
 } from "react-native";
-import React, { useState, useEffect } from "react";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { RFPercentage } from "react-native-responsive-fontsize";
 import { useAuth } from "../src/context/AuthContext";
 import { getCashTransactions } from "../src/utils/pimsApi";
 import { CashTransactions } from "../src/navigation/types";
-import { useRefreshTrigger } from "../hooks/useRefreshTrigger";
-import { SelectList } from "react-native-dropdown-select-list";
+import { formatCurrency, formatShortDate } from "../src/utils/format";
 import { colors } from "../src/theme/colors";
+import Card from "./Card";
+import DetailModal from "./DetailModal";
 
-export default function Transactions() {
+type PickerTarget = "from" | "to";
+
+// Local calendar date as YYYY-MM-DD. toISOString() would use UTC, which in
+// Australia is still the previous day until mid-morning.
+const toApiDate = (date: Date) => {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+};
+
+const cleanDescription = (description?: string) =>
+  description?.includes("Closing Balance")
+    ? description.replace("Closing Balance", "").trim()
+    : description ?? "";
+
+// The API's balance already includes the row's amount; show it as before that row,
+// which is how the previous table showed it.
+const displayBalance = (item: CashTransactions) => {
+  if (item.credit != null) return item.balance - item.credit;
+  if (item.debit != null) return item.balance + item.debit;
+  return item.balance;
+};
+
+export default function Transactions({
+  refreshTrigger,
+}: {
+  refreshTrigger: number;
+}) {
   const { userData } = useAuth();
   const { width, height } = useWindowDimensions();
+  const styles = getStyles(width, height);
+
   const [transactions, setTransactions] = useState<CashTransactions[] | null>(
     null
   );
   const [startDate, setStartDate] = useState(() => {
-    const today = new Date();
-    const oneMonthAgo = new Date(today);
-    oneMonthAgo.setMonth(today.getMonth() - 1);
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
     return oneMonthAgo;
   });
   const [endDate, setEndDate] = useState(new Date());
-  const [showStartPicker, setShowStartPicker] = useState(false);
-  const [showEndPicker, setShowEndPicker] = useState(false);
+  const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
+  // iOS edits a draft in the bottom sheet and only applies it on Done
+  const [draftDate, setDraftDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
-  const [isScrollable, setIsScrollable] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedHolding, setSelectedHolding] = useState<string>("");
   const [selectedItem, setSelectedItem] = useState<CashTransactions | null>(
     null
   );
-  const [holdingDescriptions, setHoldingDescriptions] = useState<
-    { key: string; value: string }[]
-  >([]);
-  const [selectedHolding, setSelectedHolding] = useState<string>("");
-  const [modalVisible, setModalVisible] = useState(false);
 
-  const fetchData = async () => {
-    if (!userData?.authToken || !userData?.accountId) {
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const formatDate = (date: Date) => date.toISOString().split("T")[0];
-      const data = await getCashTransactions(
-        userData.authToken,
-        userData.accountId,
-        formatDate(startDate),
-        formatDate(endDate)
-      );
-
-      if (data) {
-        setTransactions(data);
-
-        const uniqueHoldings = Array.from(
-          new Set(data.map((item) => item.holdingDescription))
-        ).map((desc) => ({
-          key: desc,
-          value: desc,
-        }));
-
-        setHoldingDescriptions([{ key: "", value: "All" }, ...uniqueHoldings]);
-      }
-    } catch (err) {
-      setError("Failed to load transaction details");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const { refreshTrigger, refreshing, onRefresh } =
-    useRefreshTrigger(fetchData);
+  const startKey = toApiDate(startDate);
+  const endKey = toApiDate(endDate);
 
   useEffect(() => {
-    fetchData();
-  }, [userData?.authToken, userData?.accountId, refreshTrigger]);
+    let cancelled = false;
 
-  const handleCodePress = (item: CashTransactions) => {
-    setSelectedItem(item);
-    setModalVisible(true);
+    const load = async () => {
+      if (!userData?.authToken || !userData?.accountId) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await getCashTransactions(
+          userData.authToken,
+          userData.accountId,
+          startKey,
+          endKey
+        );
+        if (!cancelled) setTransactions(data ?? []);
+      } catch {
+        if (!cancelled) setError("Failed to load transactions");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [userData?.authToken, userData?.accountId, refreshTrigger, startKey, endKey]);
+
+  const holdings = Array.from(
+    new Set((transactions ?? []).map((t) => t.holdingDescription))
+  );
+  // Falls back to all accounts if the chosen one has no rows in the new date range
+  const activeHolding = holdings.includes(selectedHolding) ? selectedHolding : "";
+  const visible = (transactions ?? []).filter(
+    (t) => !activeHolding || t.holdingDescription === activeHolding
+  );
+  const moneyIn = visible.reduce((sum, t) => sum + (t.credit ?? 0), 0);
+  const moneyOut = visible.reduce((sum, t) => sum + (t.debit ?? 0), 0);
+  const showAccountName = holdings.length > 1 && !activeHolding;
+
+  const today = new Date();
+
+  const openPicker = (target: PickerTarget) => {
+    setDraftDate(target === "from" ? startDate : endDate);
+    setPickerTarget(target);
   };
 
-  const filteredTransactions = selectedHolding
-    ? transactions?.filter((t) => t.holdingDescription === selectedHolding)
-    : transactions;
+  const applyDate = (target: PickerTarget, date: Date) => {
+    if (target === "from") setStartDate(date);
+    else setEndDate(date);
+  };
 
-  const styles = getStyles(width, height);
+  // From can't go past To; To can't be before From or in the future
+  const pickerLimits =
+    pickerTarget === "from"
+      ? { maximumDate: endDate }
+      : { minimumDate: startDate, maximumDate: today };
 
-  if (loading) {
-    return <Text style={styles.loader}>Loading...</Text>;
-  }
+  const detailRows = selectedItem
+    ? [
+        { label: "Date", value: formatShortDate(selectedItem.transactionDate) },
+        { label: "Description", value: cleanDescription(selectedItem.transactionDescription) },
+        { label: "Classification", value: selectedItem.classification },
+        {
+          label: "Deposit",
+          value: selectedItem.credit != null ? formatCurrency(selectedItem.credit) : null,
+        },
+        {
+          label: "Withdrawal",
+          value: selectedItem.debit != null ? formatCurrency(selectedItem.debit) : null,
+        },
+        { label: "Balance", value: formatCurrency(displayBalance(selectedItem)) },
+      ]
+    : [];
 
-  if (error) {
-    return <Text style={styles.errorText}>{error}</Text>;
-  }
+  const renderDateButton = (target: PickerTarget, label: string, date: Date) => (
+    <TouchableOpacity
+      style={styles.dateButton}
+      onPress={() => openPicker(target)}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`${label} date, ${formatShortDate(date)}`}
+    >
+      <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+      <View style={styles.dateTextBox}>
+        <Text style={styles.dateLabel}>{label}</Text>
+        <Text style={styles.dateValue} numberOfLines={1}>
+          {formatShortDate(date)}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
 
-  if (!transactions) {
-    return <Text style={styles.errorText}>No transactions data available</Text>;
-  }
+  const renderRow = (item: CashTransactions, index: number) => {
+    const isCredit = item.credit != null;
+    const isDebit = !isCredit && item.debit != null;
+    const date = formatShortDate(item.transactionDate);
+
+    return (
+      <TouchableOpacity
+        key={item.id}
+        style={[styles.row, index > 0 && styles.rowDivider]}
+        onPress={() => setSelectedItem(item)}
+        activeOpacity={0.6}
+      >
+        <View
+          style={[
+            styles.iconBox,
+            isCredit ? styles.iconIn : isDebit ? styles.iconOut : styles.iconNeutral,
+          ]}
+        >
+          <Ionicons
+            name={isCredit ? "arrow-down" : isDebit ? "arrow-up" : "wallet-outline"}
+            size={18}
+            color={isCredit ? "#15803D" : isDebit ? colors.primary : "#6B7280"}
+          />
+        </View>
+
+        <View style={styles.rowMain}>
+          <Text style={styles.description} numberOfLines={2}>
+            {cleanDescription(item.transactionDescription)}
+          </Text>
+          <Text style={styles.rowSub} numberOfLines={1}>
+            {showAccountName ? `${date} · ${item.holdingDescription}` : date}
+          </Text>
+        </View>
+
+        <View style={styles.rowAmounts}>
+          {isCredit && (
+            <Text style={[styles.amount, styles.amountIn]}>
+              +{formatCurrency(item.credit!)}
+            </Text>
+          )}
+          {isDebit && (
+            <Text style={styles.amount}>−{formatCurrency(item.debit!)}</Text>
+          )}
+          <Text style={styles.balance}>
+            Bal {formatCurrency(displayBalance(item))}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.border}>
-        <Text style={styles.bodyText}>Cash Transactions</Text>
+    <View>
+      <View style={styles.dateRow}>
+        {renderDateButton("from", "From", startDate)}
+        {renderDateButton("to", "To", endDate)}
+      </View>
 
-        <View style={styles.filterContainer}>
-          <Text style={styles.label}>From:</Text>
-          <View style={styles.leftItem}>
-            <TouchableOpacity
-              style={styles.datePickerButton}
-              onPress={() => setShowStartPicker(true)}
-            >
-              <Text style={styles.dateText}>
-                {startDate.toLocaleDateString()}
-              </Text>
-              <Ionicons name="calendar" size={20} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.label}>To:</Text>
-          <View style={styles.rightItem}>
-            <TouchableOpacity
-              style={styles.datePickerButton}
-              onPress={() => setShowEndPicker(true)}
-            >
-              <Text style={styles.dateText}>
-                {endDate.toLocaleDateString()}
-              </Text>
-              <Ionicons name="calendar" size={20} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {showStartPicker && (
-          <DateTimePicker
-            value={startDate}
-            mode="date"
-            display="default"
-            onChange={(event, selectedDate) => {
-              setShowStartPicker(false);
-              if (event.type === "set" && selectedDate) {
-                setStartDate(selectedDate);
-              }
-            }}
-          />
-        )}
-
-        {showEndPicker && (
-          <DateTimePicker
-            value={endDate}
-            mode="date"
-            display="default"
-            onChange={(event, selectedDate) => {
-              setShowEndPicker(false);
-              if (event.type === "set" && selectedDate) {
-                setEndDate(selectedDate);
-              }
-            }}
-          />
-        )}
-
-        <SelectList
-          setSelected={setSelectedHolding}
-          data={holdingDescriptions}
-          save="key"
-          placeholder="All"
-          //boxStyles={styles.dropDownBox}
-          //dropdownStyles={styles.dropDownList}
-          dropdownItemStyles={styles.dropdownItem}
-        />
-
-        <TouchableOpacity style={styles.applyButton} onPress={fetchData}>
-          <Text style={styles.applyButtonText}>Filter</Text>
-        </TouchableOpacity>
-
-        <View style={styles.tableContainer}>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.headerCell1, { flex: 1.5 }]}>
-              Date Description
-            </Text>
-            <Text style={[styles.headerCell2, { flex: 1 }]}>Amount ($)</Text>
-            <Text style={[styles.headerCell2, { flex: 1 }]}>Balance ($)</Text>
-          </View>
-          <FlatList
-            data={filteredTransactions}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item, index }) => (
-              <View
-                style={[
-                  styles.dataRow,
-                  { backgroundColor: index % 2 === 0 ? "#eee" : "#fff" },
-                ]}
-              >
-                <TouchableOpacity
-                  onPress={() => handleCodePress(item)}
-                  style={{ flex: 1.5 }}
-                >
-                  <View style={{ flexDirection: "column" }}>
-                    <Text style={[styles.dataCell, styles.leftAlign]}>
-                      {new Date(item.transactionDate).toLocaleDateString(
-                        "en-AU",
-                        {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        }
-                      )}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.dataCell,
-                        styles.leftAlign,
-                        styles.underlineText,
-                      ]}
-                    >
-                      {item.transactionDescription?.includes("Closing Balance")
-                        ? item.transactionDescription
-                            .replace("Closing Balance", "")
-                            .trim()
-                        : item.transactionDescription}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-
-                <Text
-                  style={[styles.dataCell, styles.rightAlign, { flex: 1 }]}
-                  numberOfLines={1}
-                >
-                  {item.credit != null
-                    ? item.credit.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                      })
-                    : item.debit != null
-                    ? `(${item.debit.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                      })})`
-                    : ""}
-                </Text>
-
-                <Text
-                  style={[styles.dataCell, styles.rightAlign, { flex: 1 }]}
-                  numberOfLines={1}
-                >
-                  {(() => {
-                    let newBalance = item.balance;
-
-                    if (item.credit != null) {
-                      newBalance = item.balance - item.credit;
-                    } else if (item.debit != null) {
-                      newBalance = item.balance + item.debit;
-                    }
-
-                    return newBalance.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                    });
-                  })()}
-                </Text>
-              </View>
-            )}
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            onContentSizeChange={(_, contentHeight) => {
-              setIsScrollable(contentHeight > height);
-            }}
-            contentContainerStyle={{
-              flexGrow: 1,
-              paddingBottom: isScrollable ? height * 1.2 : 20,
-            }}
-            ListEmptyComponent={() => (
-              <Text style={styles.noData}>No transactions available</Text>
-            )}
-            showsVerticalScrollIndicator={false}
-          />
-        </View>
-
-        <Modal
-          animationType="fade"
-          transparent={true}
-          visible={modalVisible}
-          onRequestClose={() => setModalVisible(false)}
+      {holdings.length > 1 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chipRow}
         >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              {selectedItem && (
-                <>
-                  <Text style={styles.modalTitle}>
-                    {selectedItem.holdingDescription}
-                  </Text>
-                  <View style={styles.modalRow}>
-                    <Text style={styles.modalLabel}>Date:</Text>
-                    <Text style={styles.modalText}>
-                      {new Date(
-                        selectedItem.transactionDate
-                      ).toLocaleDateString("en-GB")}
-                    </Text>
-                  </View>
-                  <View style={styles.modalRow}>
-                    <Text style={styles.modalLabel}>Classification:</Text>
-                    <Text style={styles.modalText}>
-                      {selectedItem.classification}
-                    </Text>
-                  </View>
-                  <View style={styles.modalRow}>
-                    <Text style={styles.modalLabel}>Withdrawal:</Text>
-                    <Text style={styles.modalText}>
-                      {selectedItem.debit != null
-                        ? selectedItem.debit.toLocaleString()
-                        : ""}
-                    </Text>
-                  </View>
-                  <View style={styles.modalRow}>
-                    <Text style={styles.modalLabel}>Deposit:</Text>
-                    <Text style={styles.modalText}>
-                      {selectedItem.credit != null
-                        ? selectedItem.credit.toLocaleString()
-                        : ""}
-                    </Text>
-                  </View>
-                  <View style={styles.modalRow}>
-                    <Text style={styles.modalLabel}>Balance:</Text>
-                    <Text style={styles.modalText}>
-                      {selectedItem.balance.toLocaleString()}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.closeButton}
-                    onPress={() => setModalVisible(false)}
-                  >
-                    <Text style={styles.closeButtonText}>Close</Text>
-                  </TouchableOpacity>
-                </>
-              )}
+          {["", ...holdings].map((holding) => {
+            const selected = holding === activeHolding;
+            return (
+              <TouchableOpacity
+                key={holding || "all"}
+                style={[styles.chip, selected && styles.chipSelected]}
+                onPress={() => setSelectedHolding(holding)}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+              >
+                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+                  {holding || "All accounts"}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      )}
+
+      {loading ? (
+        <ActivityIndicator
+          style={styles.spinner}
+          size="large"
+          color={colors.primary}
+        />
+      ) : error ? (
+        <Text style={styles.emptyText}>{error}</Text>
+      ) : (
+        <>
+          <Card style={styles.summaryCard}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Money in</Text>
+              <Text style={[styles.summaryValue, styles.amountIn]} numberOfLines={1} adjustsFontSizeToFit>
+                {formatCurrency(moneyIn)}
+              </Text>
             </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Money out</Text>
+              <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit>
+                {formatCurrency(moneyOut)}
+              </Text>
+            </View>
+          </Card>
+
+          <View style={styles.listHeader}>
+            <Text style={styles.listTitle}>Transactions</Text>
+            <Text style={styles.listCount}>{visible.length}</Text>
+          </View>
+
+          {visible.length === 0 ? (
+            <Card>
+              <Text style={styles.emptyCardText}>
+                No transactions between {formatShortDate(startDate)} and{" "}
+                {formatShortDate(endDate)}.
+              </Text>
+            </Card>
+          ) : (
+            <Card style={styles.listCard}>{visible.map(renderRow)}</Card>
+          )}
+        </>
+      )}
+
+      {pickerTarget && Platform.OS === "android" && (
+        <DateTimePicker
+          value={pickerTarget === "from" ? startDate : endDate}
+          mode="date"
+          display="default"
+          {...pickerLimits}
+          onChange={(event, date) => {
+            const target = pickerTarget;
+            setPickerTarget(null);
+            if (event.type === "set" && date) applyDate(target, date);
+          }}
+        />
+      )}
+
+      {Platform.OS === "ios" && (
+        <Modal
+          visible={!!pickerTarget}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setPickerTarget(null)}
+        >
+          <Pressable style={styles.sheetBackdrop} onPress={() => setPickerTarget(null)} />
+          <View style={styles.sheet}>
+            <View style={styles.sheetHeader}>
+              <TouchableOpacity onPress={() => setPickerTarget(null)} hitSlop={10}>
+                <Text style={styles.sheetCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <Text style={styles.sheetTitle}>
+                {pickerTarget === "from" ? "From date" : "To date"}
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  if (pickerTarget) applyDate(pickerTarget, draftDate);
+                  setPickerTarget(null);
+                }}
+                hitSlop={10}
+              >
+                <Text style={styles.sheetDone}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            {pickerTarget && (
+              <DateTimePicker
+                value={draftDate}
+                mode="date"
+                display="inline"
+                themeVariant="light"
+                accentColor={colors.primary}
+                {...pickerLimits}
+                onChange={(_, date) => date && setDraftDate(date)}
+              />
+            )}
           </View>
         </Modal>
-      </View>
+      )}
+
+      <DetailModal
+        visible={!!selectedItem}
+        title={selectedItem?.holdingDescription ?? ""}
+        rows={detailRows}
+        onClose={() => setSelectedItem(null)}
+      />
     </View>
   );
 }
 
 const getStyles = (width: number, height: number) =>
   StyleSheet.create({
-    container: {
-      marginTop: 12,
+    dateRow: {
+      flexDirection: "row",
+      gap: 10,
+    },
+    dateButton: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
       backgroundColor: "#fff",
-      borderRadius: 16,
-    },
-    listContentContainer: {
-      //paddingBottom: height * 0.44,
-    },
-    border: {
+      borderRadius: 14,
       borderWidth: 1,
       borderColor: "#E5E7EB",
-      borderRadius: 16,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      backgroundColor: "#fff",
-    },
-    bodyText: {
-      fontWeight: "bold",
-      color: colors.primary,
-      marginBottom: height * 0.005,
-      fontSize: RFPercentage(2.2),
-    },
-    filterContainer: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: height * 0.01,
-      gap: 10,
-      //flexWrap: "wrap",
-    },
-    label: {
-      fontSize: RFPercentage(2),
-    },
-    leftItem: {
-      height: height * 0.045,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    rightItem: {
-      height: height * 0.045,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    dropdownItem: {
-      paddingHorizontal: width * 0.06,
-    },
-    datePickerButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: "#f0f0f0",
-      borderRadius: 8,
-      paddingVertical: 8,
-      paddingHorizontal: 10,
-      flex: 1,
-    },
-    dateText: {
-      fontSize: RFPercentage(2),
-      color: colors.primary,
-      marginRight: width * 0.02,
-    },
-    applyButton: {
-      backgroundColor: colors.primary,
+      paddingHorizontal: 12,
       paddingVertical: 10,
-      marginVertical: height * 0.01,
-      borderRadius: 8,
-      alignItems: "center",
     },
-    applyButtonText: {
-      color: "white",
-      fontWeight: "bold",
-      fontSize: RFPercentage(2),
-    },
-
-    tableContainer: {
-      //paddingVertical: height * 0.01,
-    },
-    loader: {
-      fontWeight: "bold",
-      color: colors.primary,
-      fontSize: RFPercentage(2.6),
-      marginTop: height * 0.021,
-      marginLeft: height * 0.01,
-    },
-    errorText: {
-      color: "black",
-      fontSize: RFPercentage(2),
-      textAlign: "center",
-      marginTop: height * 0.3,
-    },
-    tableHeader: {
-      flexDirection: "row",
-      backgroundColor: colors.primary,
-      paddingVertical: height * 0.005,
-      paddingHorizontal: width * 0.02,
-    },
-    headerCell1: {
-      color: "white",
-      fontWeight: "bold",
-      fontSize: RFPercentage(2),
-      textAlign: "left",
-    },
-    headerCell2: {
-      color: "white",
-      fontWeight: "bold",
-      fontSize: RFPercentage(2),
-      textAlign: "right",
-    },
-    dataRow: {
-      flexDirection: "row",
-      paddingVertical: height * 0.005,
-      paddingHorizontal: width * 0.02,
-      borderWidth: 1,
-      borderColor: "#ccc",
-      alignItems: "center",
-    },
-    dataCell: {
-      fontSize: RFPercentage(2),
-      color: "#333",
-    },
-    noData: {
-      textAlign: "center",
-      marginVertical: height * 0.02,
-      color: "#888",
-      fontSize: RFPercentage(2),
-    },
-    underlineText: {
-      textDecorationLine: "underline",
-      color: colors.primary,
-    },
-    leftAlign: {
-      textAlign: "left",
-    },
-    centerAlign: {
-      textAlign: "center",
-    },
-    rightAlign: {
-      textAlign: "right",
-    },
-    boldText: {
-      fontWeight: "bold",
-    },
-    modalContainer: {
+    dateTextBox: {
       flex: 1,
+      marginLeft: 10,
+    },
+    dateLabel: {
+      fontSize: RFPercentage(1.6),
+      color: "#6B7280",
+    },
+    dateValue: {
+      fontSize: RFPercentage(2),
+      fontWeight: "bold",
+      color: colors.primary,
+    },
+    chipRow: {
+      gap: 8,
+      paddingTop: 12,
+    },
+    chip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: "#fff",
+      borderWidth: 1,
+      borderColor: "#E5E7EB",
+    },
+    chipSelected: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    chipText: {
+      fontSize: RFPercentage(1.8),
+      color: colors.primary,
+      fontWeight: "600",
+    },
+    chipTextSelected: {
+      color: "#fff",
+    },
+    spinner: {
+      marginTop: height * 0.08,
+    },
+    emptyText: {
+      textAlign: "center",
+      color: "#6B7280",
+      fontSize: RFPercentage(1.9),
+      marginTop: height * 0.05,
+    },
+    summaryCard: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    summaryItem: {
+      flex: 1,
+    },
+    summaryDivider: {
+      width: StyleSheet.hairlineWidth,
+      alignSelf: "stretch",
+      backgroundColor: "#E5E7EB",
+      marginHorizontal: 16,
+    },
+    summaryLabel: {
+      fontSize: RFPercentage(1.8),
+      color: "#6B7280",
+    },
+    summaryValue: {
+      fontSize: RFPercentage(2.6),
+      fontWeight: "bold",
+      color: colors.primary,
+      marginTop: 4,
+    },
+    listHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginTop: 20,
+      paddingHorizontal: 4,
+    },
+    listTitle: {
+      fontSize: RFPercentage(2.3),
+      fontWeight: "bold",
+      color: colors.primary,
+    },
+    listCount: {
+      fontSize: RFPercentage(1.9),
+      color: "#6B7280",
+    },
+    listCard: {
+      paddingVertical: 0,
+      paddingHorizontal: 0,
+      marginTop: 8,
+    },
+    emptyCardText: {
+      textAlign: "center",
+      color: "#6B7280",
+      fontSize: RFPercentage(1.9),
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    rowDivider: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: "#E5E7EB",
+    },
+    iconBox: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
       justifyContent: "center",
       alignItems: "center",
-      backgroundColor: "rgba(0,0,0,0.5)",
+      marginRight: 12,
     },
-    modalContent: {
-      width: width * 0.8,
-      backgroundColor: "white",
-      borderRadius: 10,
-      padding: width * 0.05,
+    iconIn: {
+      backgroundColor: "#DCFCE7",
     },
-    modalTitle: {
-      fontSize: RFPercentage(2.5),
+    iconOut: {
+      backgroundColor: colors.primarySoft,
+    },
+    iconNeutral: {
+      backgroundColor: "#F3F4F6",
+    },
+    rowMain: {
+      flex: 1,
+      marginRight: 8,
+    },
+    description: {
+      fontSize: RFPercentage(2),
+      fontWeight: "600",
+      color: "#111827",
+    },
+    rowSub: {
+      fontSize: RFPercentage(1.7),
+      color: "#6B7280",
+      marginTop: 2,
+    },
+    rowAmounts: {
+      alignItems: "flex-end",
+      maxWidth: width * 0.42,
+    },
+    amount: {
+      fontSize: RFPercentage(2),
       fontWeight: "bold",
       color: colors.primary,
-      marginBottom: height * 0.02,
-      textAlign: "center",
     },
-    modalRow: {
-      flexDirection: "row",
-      marginBottom: height * 0.015,
+    amountIn: {
+      color: "#15803D",
     },
-    modalLabel: {
-      fontWeight: "bold",
-      width: width * 0.3,
-      fontSize: RFPercentage(2),
+    balance: {
+      fontSize: RFPercentage(1.6),
+      color: "#9CA3AF",
+      marginTop: 2,
     },
-    modalText: {
+    sheetBackdrop: {
       flex: 1,
-      fontSize: RFPercentage(2),
+      backgroundColor: "rgba(0,0,0,0.4)",
     },
-    closeButton: {
-      marginTop: height * 0.02,
-      backgroundColor: colors.primary,
-      padding: width * 0.03,
-      borderRadius: 10,
+    sheet: {
+      backgroundColor: "#fff",
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      paddingHorizontal: 12,
+      paddingBottom: 32,
+    },
+    sheetHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
       alignItems: "center",
+      paddingHorizontal: 8,
+      paddingVertical: 14,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: "#E5E7EB",
     },
-    closeButtonText: {
-      color: "white",
+    sheetTitle: {
+      fontSize: RFPercentage(2.1),
       fontWeight: "bold",
+      color: colors.primary,
+    },
+    sheetCancel: {
       fontSize: RFPercentage(2),
+      color: "#6B7280",
+    },
+    sheetDone: {
+      fontSize: RFPercentage(2),
+      fontWeight: "bold",
+      color: colors.link,
     },
   });
