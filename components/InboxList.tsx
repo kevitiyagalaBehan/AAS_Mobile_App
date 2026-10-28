@@ -433,7 +433,7 @@ const getStyles = (width: number, height: number) =>
     },
     bodySection: {
       backgroundColor: "#fff",
-      borderRadius: 6,
+      borderRadius: 16,
     },
     border: {
       borderWidth: 1,
