@@ -1,6 +1,6 @@
 import { StatusBar } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { ESignProvider } from "./src/context/ESignContext";
@@ -19,8 +19,15 @@ import {
   InboxNotificationActionData,
   RootStackParamList,
 } from "./src/navigation/types";
+import { colors } from "./src/theme/colors";
 
 const Stack = createStackNavigator<RootStackParamList>();
+
+// Tab bar, drawer and header highlights use the theme's primary colour
+const navigationTheme = {
+  ...DefaultTheme,
+  colors: { ...DefaultTheme.colors, primary: colors.primary },
+};
 
 function AppNavigator() {
   const { userData } = useAuth();
@@ -148,7 +155,7 @@ function AppInner() {
   }, [isLoggedIn, userType]);
 
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer ref={navigationRef} theme={navigationTheme}>
       <AppNavigator />
     </NavigationContainer>
   );

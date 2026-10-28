@@ -1,9 +1,49 @@
 import { useState, useEffect } from "react";
 import { getAssetAllocationSummaryFamily } from "../src/utils/pimsApi";
 import {
+  AssetAllocationSummary,
   AssetCategory,
   PortfolioData,
 } from "../src/navigation/types";
+
+// Groups the family summary's flat rows into categories with their classes
+export function toFamilyPortfolioData(
+  response: AssetAllocationSummary[]
+): PortfolioData {
+  const categoryMap: Record<string, AssetCategory> = {};
+  let totalMarketValue = 0;
+
+  response.forEach((item) => {
+    const { assetCategory, assetClass, marketValue, marketPercentage } = item;
+    totalMarketValue += marketValue;
+
+    if (!categoryMap[assetCategory]) {
+      categoryMap[assetCategory] = {
+        assetCategory,
+        marketValue: 0,
+        percentage: 0,
+        assetClasses: [],
+      };
+    }
+
+    categoryMap[assetCategory].marketValue += marketValue;
+    categoryMap[assetCategory].percentage += marketPercentage;
+    categoryMap[assetCategory].assetClasses!.push({
+      assetClass,
+      marketValue,
+      percentage: marketPercentage,
+    });
+  });
+
+  const assetCategories: AssetCategory[] = Object.values(categoryMap);
+
+  const totalPercentage = assetCategories.reduce(
+    (sum, cat) => sum + cat.assetClasses!.reduce((s, a) => s + a.percentage, 0),
+    0
+  );
+
+  return { assetCategories, totalMarketValue, totalPercentage };
+}
 
 export function usePortfolioSummary(
   authToken: string,
@@ -36,45 +76,7 @@ export function usePortfolioSummary(
           return;
         }
 
-        const categoryMap: Record<string, AssetCategory> = {};
-        let totalMarketValue = 0;
-
-        response.forEach((item) => {
-          const { assetCategory, assetClass, marketValue, marketPercentage } =
-            item;
-          totalMarketValue += marketValue;
-
-          if (!categoryMap[assetCategory]) {
-            categoryMap[assetCategory] = {
-              assetCategory,
-              marketValue: 0,
-              percentage: 0,
-              assetClasses: [],
-            };
-          }
-
-          categoryMap[assetCategory].marketValue += marketValue;
-          categoryMap[assetCategory].percentage += marketPercentage;
-          categoryMap[assetCategory].assetClasses!.push({
-            assetClass,
-            marketValue,
-            percentage: marketPercentage,
-          });
-        });
-
-        const assetCategories: AssetCategory[] = Object.values(categoryMap);
-
-        const totalPercentage = assetCategories.reduce(
-          (sum, cat) =>
-            sum + cat.assetClasses!.reduce((s, a) => s + a.percentage, 0),
-          0
-        );
-
-        setData({
-          assetCategories,
-          totalMarketValue,
-          totalPercentage,
-        });
+        setData(toFamilyPortfolioData(response));
       } catch (err) {
         console.error(err);
         setError("Failed to fetch or process data");

@@ -629,7 +629,7 @@ export const getEstimatedMemberStatement = async (
   accountId: string,
   fromDate: Date,
   toDate: Date
-): Promise<EstimatedMemberDetails | null> => {
+): Promise<EstimatedMemberDetails[] | null> => {
   try {
     const formatDate = (date: Date) => encodeURIComponent(date.toUTCString());
 
@@ -650,7 +650,8 @@ export const getEstimatedMemberStatement = async (
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
 
-    const data: EstimatedMemberDetails = await response.json();
+    // One entry per member
+    const data: EstimatedMemberDetails[] = await response.json();
     return data;
   } catch (error) {
     console.error("Fetch failed:", error);

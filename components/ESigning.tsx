@@ -9,22 +9,50 @@ import {
   useWindowDimensions,
   FlatList,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { getEsignDocuments } from "../src/utils/pimsApi";
-import { EsignDocument } from "../src/navigation/types";
+import { EsignDocument, Signatory } from "../src/navigation/types";
 import { useAuth } from "../src/context/AuthContext";
 import { RFPercentage } from "react-native-responsive-fontsize";
 import { useRefreshTrigger } from "../hooks/useRefreshTrigger";
 import Constants from "expo-constants";
+import { colors } from "../src/theme/colors";
+import { formatShortDate } from "../src/utils/format";
 
 const docBaseUrl = Constants.expoConfig?.extra?.docBaseUrl as string;
+
+type Tab = "toSign" | "all";
+
+const needsSigning = (doc: EsignDocument) =>
+  doc.signatories.some((s) => s.esigningStatus !== "Signed");
+
+const SIGNATORY_STATUS = {
+  Signed: { label: "Signed", icon: "checkmark-circle", color: "#15803D", bg: "#DCFCE7" },
+  Viewed: { label: "Viewed", icon: "eye", color: "#A16207", bg: "#FEF9C3" },
+  Pending: { label: "Pending", icon: "time", color: "#B91C1C", bg: "#FEE2E2" },
+} as const;
+
+const getSignatoryStatus = (s: Signatory) =>
+  s.esigningStatus === "Signed"
+    ? SIGNATORY_STATUS.Signed
+    : s.esigningStatus === "Viewed"
+    ? SIGNATORY_STATUS.Viewed
+    : SIGNATORY_STATUS.Pending;
+
+const getDueInfo = (dueDate?: string) => {
+  if (!dueDate) return null;
+  const due = new Date(dueDate);
+  if (isNaN(due.getTime())) return null;
+  const overdue = due.getTime() < new Date().setHours(0, 0, 0, 0);
+  return { label: `${overdue ? "Overdue" : "Due"} ${formatShortDate(due)}`, overdue };
+};
 
 export default function ESigning() {
   const { userData } = useAuth();
   const [documents, setDocuments] = useState<EsignDocument[]>([]);
-  const [selectedTab, setSelectedTab] = useState<"toSign" | "signed">("toSign");
+  const [selectedTab, setSelectedTab] = useState<Tab>("toSign");
   const [selectedDocument, setSelectedDocument] =
     useState<EsignDocument | null>(null);
-  const [isScrollable, setIsScrollable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { width, height } = useWindowDimensions();
@@ -37,6 +65,7 @@ export default function ESigning() {
     }
 
     setLoading(true);
+    setError(null);
 
     try {
       const data = await getEsignDocuments(
@@ -59,19 +88,11 @@ export default function ESigning() {
     fetchData();
   }, [userData?.authToken, userData?.accountId, refreshTrigger]);
 
-  const filteredDocs = documents.filter((doc) =>
-    selectedTab === "toSign"
-      ? doc.signatories.some((s) => s.esigningStatus !== "Signed")
-      : doc.signatories.every((s) => s.esigningStatus === "Signed")
+  const sorted = [...documents].sort(
+    (a, b) => new Date(b.sentDate).getTime() - new Date(a.sentDate).getTime()
   );
-
-  const toBeSignedCount = documents.filter((doc) =>
-    doc.signatories.some((s) => s.esigningStatus !== "Signed")
-  ).length;
-
-  const signedCount = documents.filter((doc) =>
-    doc.signatories.every((s) => s.esigningStatus === "Signed")
-  ).length;
+  const toSignDocs = sorted.filter(needsSigning);
+  const visibleDocs = selectedTab === "toSign" ? toSignDocs : sorted;
 
   const handleSign = (esigningDetailId: string) => {
     Linking.openURL(
@@ -79,222 +100,233 @@ export default function ESigning() {
     );
   };
 
-  if (loading) {
-    return <Text style={styles.loader}>Loading...</Text>;
-  }
+  const handleView = (documentPath: string) => {
+    Linking.openURL(`${docBaseUrl}/${documentPath}`);
+  };
 
-  if (error) {
-    return <Text style={styles.errorText}>{error}</Text>;
-  }
+  const renderDocument = ({ item }: { item: EsignDocument }) => {
+    const pending = needsSigning(item);
+    const signId = item.signatories.find((s) => s.esigningDetailId)
+      ?.esigningDetailId;
+    const documentPath = item.documents?.[0]?.documentPath;
+    const due = pending ? getDueInfo(item.dueDate) : null;
 
-  if (!documents) {
-    return <Text style={styles.errorText}>No investments data available</Text>;
-  }
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => setSelectedDocument(item)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.cardTop}>
+          <View
+            style={[styles.docIcon, pending ? styles.docIconPending : styles.docIconDone]}
+          >
+            <Ionicons
+              name={pending ? "create-outline" : "checkmark-done"}
+              size={20}
+              color={pending ? "#C2410C" : "#15803D"}
+            />
+          </View>
+          <View style={styles.cardTitleBox}>
+            <Text style={styles.subject} numberOfLines={2}>
+              {item.subject}
+            </Text>
+            <Text style={styles.meta} numberOfLines={1}>
+              {item.sentBy ? `From ${item.sentBy} · ` : ""}
+              {item.sentDate ? formatShortDate(item.sentDate) : ""}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.chipsRow}>
+          {due && (
+            <View style={[styles.dueBadge, due.overdue && styles.dueBadgeOverdue]}>
+              <Text style={[styles.dueText, due.overdue && styles.dueTextOverdue]}>
+                {due.label}
+              </Text>
+            </View>
+          )}
+          {!pending && (
+            <View style={[styles.statusChip, { backgroundColor: SIGNATORY_STATUS.Signed.bg }]}>
+              <Text style={[styles.statusChipText, { color: SIGNATORY_STATUS.Signed.color }]}>
+                Completed
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.signatories}>
+          {item.signatories.map((s, i) => {
+            const status = getSignatoryStatus(s);
+            return (
+              <View key={`${s.signatoryEmail}-${i}`} style={styles.signatoryRow}>
+                <Ionicons name={status.icon} size={16} color={status.color} />
+                <Text style={styles.signatoryName} numberOfLines={1}>
+                  {s.signatoryName}
+                </Text>
+                <Text style={[styles.signatoryStatus, { color: status.color }]}>
+                  {status.label}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+
+        {pending && signId ? (
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => handleSign(signId)}
+            accessibilityRole="button"
+          >
+            <Ionicons name="create" size={18} color="#fff" />
+            <Text style={styles.primaryButtonText}>Sign document</Text>
+          </TouchableOpacity>
+        ) : !pending && documentPath ? (
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => handleView(documentPath)}
+            accessibilityRole="button"
+          >
+            <Ionicons name="document-text-outline" size={18} color={colors.primary} />
+            <Text style={styles.secondaryButtonText}>View document</Text>
+          </TouchableOpacity>
+        ) : null}
+      </TouchableOpacity>
+    );
+  };
+
+  const detailRows = selectedDocument
+    ? [
+        { label: "Code", value: selectedDocument.esigningCode || "N/A" },
+        {
+          label: "Sent",
+          value: selectedDocument.sentDate
+            ? formatShortDate(selectedDocument.sentDate)
+            : "N/A",
+        },
+        { label: "Sent by", value: selectedDocument.sentBy || "N/A" },
+        { label: "Account", value: selectedDocument.accountName || "N/A" },
+        {
+          label: "Due",
+          value: selectedDocument.dueDate
+            ? formatShortDate(selectedDocument.dueDate)
+            : "N/A",
+        },
+      ]
+    : [];
 
   return (
     <View style={styles.container}>
-      <View style={styles.border}>
-        <Text style={styles.bodyText}>E-Signing Documents</Text>
-
-        <View style={styles.tabContainer}>
+      <View style={styles.segmentedControl}>
+        {(
+          [
+            { key: "toSign", label: `To Sign (${toSignDocs.length})` },
+            { key: "all", label: `All (${documents.length})` },
+          ] as const
+        ).map((tab) => (
           <TouchableOpacity
-            style={[styles.tab, selectedTab === "toSign" && styles.activeTab]}
-            onPress={() => setSelectedTab("toSign")}
+            key={tab.key}
+            style={[styles.segment, selectedTab === tab.key && styles.segmentActive]}
+            onPress={() => setSelectedTab(tab.key)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: selectedTab === tab.key }}
           >
             <Text
               style={[
-                styles.tabText,
-                selectedTab === "toSign" && styles.activeTabText,
+                styles.segmentText,
+                selectedTab === tab.key && styles.segmentTextActive,
               ]}
             >
-              To Be Signed ({toBeSignedCount})
+              {tab.label}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, selectedTab === "signed" && styles.activeTab]}
-            onPress={() => setSelectedTab("signed")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                selectedTab === "signed" && styles.activeTabText,
-              ]}
-            >
-              Signed ({signedCount})
-            </Text>
-          </TouchableOpacity>
-        </View>
+        ))}
+      </View>
 
-        <View style={styles.tableContainer}>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.headerCell, { flex: 1.3 }]}>Subject</Text>
-            <Text style={[styles.headerCell, { flex: 1.5 }]}>Signatories</Text>
-            <Text style={[styles.headerCell, { flex: 1, textAlign: "center" }]}>
-              Action
-            </Text>
-          </View>
-          <FlatList
-            data={filteredDocs}
-            keyExtractor={(item, index) => `${item.subject}-${index}`}
-            renderItem={({ item, index }) => {
-              const hasSignable = item.signatories.some(
-                (s) => s.esigningDetailId
-              );
-              const firstValidId = item.signatories.find(
-                (s) => s.esigningDetailId
-              )?.esigningDetailId;
-              const documentToOpen = item.documents?.[0]?.documentPath;
+      {loading && !refreshing ? (
+        <Text style={styles.muted}>Loading...</Text>
+      ) : error ? (
+        <Text style={styles.errorText}>{error}</Text>
+      ) : (
+        <FlatList
+          data={visibleDocs}
+          keyExtractor={(item, index) => `${item.esigningId || item.subject}-${index}`}
+          renderItem={renderDocument}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={() => (
+            <View style={styles.emptyState}>
+              <Ionicons
+                name={selectedTab === "toSign" ? "checkmark-done-circle-outline" : "documents-outline"}
+                size={44}
+                color="#9CA3AF"
+              />
+              <Text style={styles.emptyTitle}>
+                {selectedTab === "toSign" ? "You're all caught up" : "No documents yet"}
+              </Text>
+              <Text style={styles.emptyText}>
+                {selectedTab === "toSign"
+                  ? "There are no documents waiting for your signature."
+                  : "Documents sent to you for signing will appear here."}
+              </Text>
+            </View>
+          )}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
-              return (
-                <View
-                  style={[
-                    styles.dataRow,
-                    { backgroundColor: index % 2 === 0 ? "#eee" : "#fff" },
-                  ]}
-                >
-                  <TouchableOpacity
-                    style={{ flex: 1.3 }}
-                    onPress={() => setSelectedDocument(item)}
-                  >
-                    <Text style={[styles.dataCell, styles.underlineText]}>
-                      {item.subject}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <View style={{ flex: 1.5 }}>
-                    <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-                      {item.signatories.map((s, i) => {
-                        let color = "#D41515";
-                        if (s.esigningStatus === "Signed") color = "#48C738";
-                        else if (s.esigningStatus === "Viewed")
-                          color = "#CAD415";
-
-                        return (
-                          <Text
-                            key={i}
-                            style={[
-                              styles.dataCell,
-                              styles.boldText,
-                              { color },
-                            ]}
-                          >
-                            {s.signatoryName}
-                            {i < item.signatories.length - 1 ? ", " : ""}
-                          </Text>
-                        );
-                      })}
-                    </View>
-                  </View>
-
-                  <View style={{ flex: 1, alignItems: "center" }}>
-                    {selectedTab === "toSign" &&
-                      hasSignable &&
-                      firstValidId && (
-                        <TouchableOpacity
-                          style={styles.signBtn}
-                          onPress={() => handleSign(firstValidId)}
-                        >
-                          <Text style={styles.signBtnText}>Sign</Text>
-                        </TouchableOpacity>
-                      )}
-                    {selectedTab === "signed" && documentToOpen && (
-                      <TouchableOpacity
-                        style={styles.signBtn}
-                        onPress={() =>
-                          Linking.openURL(`${docBaseUrl}/${documentToOpen}`)
-                        }
-                      >
-                        <Text style={styles.signBtnText}>Open</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-              );
-            }}
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            onContentSizeChange={(_, contentHeight) => {
-              setIsScrollable(contentHeight > height);
-            }}
-            contentContainerStyle={{
-              flexGrow: 1,
-              paddingBottom: isScrollable ? height * 0.38 : 0,
-            }}
-            ListEmptyComponent={() => (
-              <Text style={styles.noData}>No documents available</Text>
-            )}
-            showsVerticalScrollIndicator={false}
-          />
-        </View>
-
-        <Modal
-          animationType="fade"
-          transparent={true}
-          visible={!!selectedDocument}
-          onRequestClose={() => setSelectedDocument(null)}
-        >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={!!selectedDocument}
+        onRequestClose={() => setSelectedDocument(null)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{selectedDocument?.subject}</Text>
-
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Code:</Text>
-                <Text style={styles.modalText}>
-                  {selectedDocument?.esigningCode || "N/A"}
-                </Text>
-              </View>
-
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Sent Date:</Text>
-                <Text style={styles.modalText}>
-                  {selectedDocument?.sentDate
-                    ? new Date(selectedDocument.sentDate).toLocaleDateString()
-                    : "N/A"}
-                </Text>
-              </View>
-
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Account:</Text>
-                <Text style={styles.modalText}>
-                  {selectedDocument?.accountName || "N/A"}
-                </Text>
-              </View>
-
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Sent By:</Text>
-                <Text style={styles.modalText}>
-                  {selectedDocument?.sentBy || "N/A"}
-                </Text>
-              </View>
-
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Signatories: </Text>
-                <Text style={styles.modalText}>
-                  {selectedDocument?.signatories
-                    .map((s) => s.signatoryName)
-                    .join(", ")}
-                </Text>
-              </View>
-
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Due Date:</Text>
-                <Text style={styles.modalText}>
-                  {selectedDocument?.dueDate
-                    ? new Date(selectedDocument.dueDate).toLocaleDateString()
-                    : "N/A"}
-                </Text>
-              </View>
-
               <TouchableOpacity
-                style={styles.closeButton}
                 onPress={() => setSelectedDocument(null)}
+                hitSlop={10}
+                accessibilityLabel="Close"
               >
-                <Text style={styles.closeButtonText}>Close</Text>
+                <Ionicons name="close" size={24} color="#6B7280" />
               </TouchableOpacity>
             </View>
+
+            {detailRows.map((row) => (
+              <View key={row.label} style={styles.modalRow}>
+                <Text style={styles.modalLabel}>{row.label}</Text>
+                <Text style={styles.modalValue}>{row.value}</Text>
+              </View>
+            ))}
+
+            <Text style={styles.modalSection}>Signatories</Text>
+            {selectedDocument?.signatories.map((s, i) => {
+              const status = getSignatoryStatus(s);
+              return (
+                <View key={`${s.signatoryEmail}-${i}`} style={styles.signatoryRow}>
+                  <Ionicons name={status.icon} size={16} color={status.color} />
+                  <Text style={styles.signatoryName} numberOfLines={1}>
+                    {s.signatoryName}
+                  </Text>
+                  <Text style={[styles.signatoryStatus, { color: status.color }]}>
+                    {status.label}
+                  </Text>
+                </View>
+              );
+            })}
+
+            <TouchableOpacity
+              style={[styles.primaryButton, styles.closeButton]}
+              onPress={() => setSelectedDocument(null)}
+            >
+              <Text style={styles.primaryButtonText}>Close</Text>
+            </TouchableOpacity>
           </View>
-        </Modal>
-      </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -302,105 +334,196 @@ export default function ESigning() {
 const getStyles = (width: number, height: number) =>
   StyleSheet.create({
     container: {
+      flex: 1,
+    },
+    segmentedControl: {
+      flexDirection: "row",
+      backgroundColor: "#E2E6EE",
+      borderRadius: 12,
+      padding: 4,
+      marginHorizontal: width * 0.01,
+    },
+    segment: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 9,
+      alignItems: "center",
+    },
+    segmentActive: {
       backgroundColor: "#fff",
-      marginVertical: height * 0.02,
-      borderRadius: 6,
+      shadowColor: "#000",
+      shadowOpacity: 0.08,
+      shadowRadius: 3,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: 2,
     },
-    tableContainer: {
-      //flexGrow: 1,
+    segmentText: {
+      fontSize: RFPercentage(1.9),
+      color: "#4B5563",
+      fontWeight: "600",
     },
-    loader: {
+    segmentTextActive: {
+      color: colors.primary,
       fontWeight: "bold",
-      color: "#1B77BE",
-      fontSize: RFPercentage(2.6),
-      marginTop: height * 0.021,
-      marginLeft: height * 0.013,
+    },
+    listContent: {
+      flexGrow: 1,
+      paddingHorizontal: width * 0.01,
+      paddingBottom: height * 0.03,
+    },
+    muted: {
+      textAlign: "center",
+      color: "#6B7280",
+      fontSize: RFPercentage(1.9),
+      marginTop: height * 0.05,
     },
     errorText: {
-      color: "red",
+      color: "#B91C1C",
       fontSize: RFPercentage(2),
       textAlign: "center",
-      marginTop: height * 0.3,
+      marginTop: height * 0.05,
     },
-    border: {
-      borderWidth: 1,
-      borderColor: "#1B77BE",
-      borderRadius: 6,
-      paddingHorizontal: height * 0.01,
-      paddingBottom: height * 0.01,
-    },
-    bodyText: {
-      //fontWeight: "bold",
-      color: "#1B77BE",
-      fontSize: RFPercentage(2.6),
-      marginBottom: height * 0.005,
-    },
-    tabContainer: {
-      flexDirection: "row",
-    },
-    tab: {
-      flex: 1,
-      padding: 12,
+    card: {
       backgroundColor: "#fff",
-      alignItems: "center",
-    },
-    activeTab: {
-      backgroundColor: "#1B77BE",
-    },
-    tabText: {
-      fontSize: RFPercentage(2),
-      fontWeight: "bold",
-      color: "#1B77BE",
-    },
-    activeTabText: {
-      color: "#fff",
-    },
-    tableHeader: {
-      flexDirection: "row",
-      backgroundColor: "#1B77BE",
-      paddingVertical: height * 0.006,
-      paddingHorizontal: width * 0.02,
-    },
-    headerCell: {
-      color: "white",
-      fontWeight: "bold",
-      fontSize: RFPercentage(2),
-    },
-    dataRow: {
-      flexDirection: "row",
-      paddingVertical: height * 0.007,
-      paddingHorizontal: width * 0.02,
-      alignItems: "center",
+      borderRadius: 16,
       borderWidth: 1,
-      borderColor: "#ccc",
+      borderColor: "#E5E7EB",
+      padding: 16,
+      marginTop: 12,
     },
-    dataCell: {
-      fontSize: RFPercentage(2),
-      color: "#333",
+    cardTop: {
+      flexDirection: "row",
+      alignItems: "flex-start",
     },
-    underlineText: {
-      textDecorationLine: "underline",
-      color: "#4A90E2",
+    docIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 12,
     },
-    boldText: {
+    docIconPending: {
+      backgroundColor: "#FFEDD5",
+    },
+    docIconDone: {
+      backgroundColor: "#DCFCE7",
+    },
+    cardTitleBox: {
+      flex: 1,
+    },
+    subject: {
+      fontSize: RFPercentage(2.1),
+      fontWeight: "bold",
+      color: colors.primary,
+    },
+    meta: {
+      fontSize: RFPercentage(1.7),
+      color: "#6B7280",
+      marginTop: 2,
+    },
+    chipsRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 6,
+      marginTop: 10,
+    },
+    dueBadge: {
+      backgroundColor: "#FFEDD5",
+      borderRadius: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+    },
+    dueBadgeOverdue: {
+      backgroundColor: "#FEE2E2",
+    },
+    dueText: {
+      fontSize: RFPercentage(1.6),
+      fontWeight: "bold",
+      color: "#C2410C",
+    },
+    dueTextOverdue: {
+      color: "#B91C1C",
+    },
+    statusChip: {
+      borderRadius: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+    },
+    statusChipText: {
+      fontSize: RFPercentage(1.6),
       fontWeight: "bold",
     },
-    signBtn: {
-      backgroundColor: "#1B77BE",
-      paddingVertical: height * 0.007,
-      paddingHorizontal: width * 0.04,
-      borderRadius: 6,
+    signatories: {
+      marginTop: 10,
+      paddingTop: 6,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: "#E5E7EB",
     },
-    signBtnText: {
+    signatoryRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 4,
+    },
+    signatoryName: {
+      flex: 1,
+      fontSize: RFPercentage(1.8),
+      color: "#111827",
+      marginLeft: 8,
+    },
+    signatoryStatus: {
+      fontSize: RFPercentage(1.7),
+      fontWeight: "600",
+    },
+    primaryButton: {
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: colors.primary,
+      borderRadius: 12,
+      paddingVertical: 12,
+      marginTop: 12,
+    },
+    primaryButtonText: {
       color: "#fff",
       fontWeight: "bold",
       fontSize: RFPercentage(2),
     },
-    noData: {
-      textAlign: "center",
-      marginVertical: height * 0.02,
-      color: "#888",
+    secondaryButton: {
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      gap: 8,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      borderRadius: 12,
+      paddingVertical: 11,
+      marginTop: 12,
+    },
+    secondaryButtonText: {
+      color: colors.primary,
+      fontWeight: "bold",
       fontSize: RFPercentage(2),
+    },
+    emptyState: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: width * 0.1,
+      marginTop: height * 0.08,
+    },
+    emptyTitle: {
+      fontSize: RFPercentage(2.2),
+      fontWeight: "bold",
+      color: colors.primary,
+      marginTop: 10,
+    },
+    emptyText: {
+      fontSize: RFPercentage(1.8),
+      color: "#6B7280",
+      textAlign: "center",
+      marginTop: 4,
     },
     modalContainer: {
       flex: 1,
@@ -409,41 +532,50 @@ const getStyles = (width: number, height: number) =>
       backgroundColor: "rgba(0,0,0,0.5)",
     },
     modalContent: {
-      width: width * 0.8,
+      width: width * 0.88,
       backgroundColor: "white",
-      borderRadius: 10,
+      borderRadius: 16,
       padding: width * 0.05,
     },
+    modalHeader: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 12,
+      marginBottom: 8,
+    },
     modalTitle: {
-      fontSize: RFPercentage(2.5),
+      flex: 1,
+      fontSize: RFPercentage(2.4),
       fontWeight: "bold",
-      color: "#4A90E2",
-      marginBottom: height * 0.02,
-      textAlign: "center",
+      color: colors.primary,
     },
     modalRow: {
       flexDirection: "row",
-      marginBottom: height * 0.015,
+      justifyContent: "space-between",
+      paddingVertical: 8,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: "#E5E7EB",
     },
     modalLabel: {
-      fontWeight: "bold",
-      width: width * 0.3,
-      fontSize: RFPercentage(2),
+      fontSize: RFPercentage(1.9),
+      color: "#6B7280",
     },
-    modalText: {
-      flex: 1,
-      fontSize: RFPercentage(2),
+    modalValue: {
+      flexShrink: 1,
+      textAlign: "right",
+      marginLeft: 12,
+      fontSize: RFPercentage(1.9),
+      fontWeight: "600",
+      color: "#111827",
+    },
+    modalSection: {
+      fontSize: RFPercentage(1.9),
+      fontWeight: "bold",
+      color: colors.primary,
+      marginTop: 14,
+      marginBottom: 2,
     },
     closeButton: {
-      marginTop: height * 0.02,
-      backgroundColor: "#00205A",
-      padding: width * 0.03,
-      borderRadius: 10,
-      alignItems: "center",
-    },
-    closeButtonText: {
-      color: "white",
-      fontWeight: "bold",
-      fontSize: RFPercentage(2),
+      marginTop: 18,
     },
   });

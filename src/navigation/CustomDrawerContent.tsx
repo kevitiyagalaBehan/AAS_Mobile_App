@@ -26,6 +26,7 @@ import {
 } from "../utils/pinStorage";
 import { navigationRef } from "./RootNavigation";
 import { DrawerMenuItem } from "./types";
+import { colors } from "../theme/colors";
 
 export default function CustomDrawerContent(props: any) {
   const { userData, setCurrentUserName, currentUserName, resetAuthState } =
@@ -196,7 +197,7 @@ export default function CustomDrawerContent(props: any) {
       {menuItems ? renderMenuItems() : <DrawerItemList {...props} />}
 
       <TouchableOpacity style={styles.pinButton} onPress={handlePinPress}>
-        <Ionicons name="keypad" size={26} color="#00205A" />
+        <Ionicons name="keypad" size={26} color={colors.primary} />
         <Text style={styles.pinText}>
           {hasPin ? "PIN Login" : "Set Up PIN Login"}
         </Text>
@@ -207,7 +208,7 @@ export default function CustomDrawerContent(props: any) {
         onPress={handleResetPasswordPress}
         disabled={sendingReset}
       >
-        <Ionicons name="key" size={26} color="#00205A" />
+        <Ionicons name="key" size={26} color={colors.primary} />
         <Text style={styles.resetPasswordText}>
           {sendingReset ? "Sending..." : "Reset Password"}
         </Text>
@@ -250,7 +251,7 @@ const getStyles = (width: number, height: number) =>
     },
     pinText: {
       fontSize: RFPercentage(2),
-      color: "#00205A",
+      color: colors.primary,
       fontWeight: "bold",
       marginLeft: width * 0.03,
     },
@@ -263,7 +264,7 @@ const getStyles = (width: number, height: number) =>
     },
     resetPasswordText: {
       fontSize: RFPercentage(2),
-      color: "#00205A",
+      color: colors.primary,
       fontWeight: "bold",
       marginLeft: width * 0.03,
     },

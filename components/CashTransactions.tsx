@@ -16,6 +16,7 @@ import { getCashTransactions } from "../src/utils/pimsApi";
 import { CashTransactions } from "../src/navigation/types";
 import { useRefreshTrigger } from "../hooks/useRefreshTrigger";
 import { SelectList } from "react-native-dropdown-select-list";
+import { colors } from "../src/theme/colors";
 
 export default function Transactions() {
   const { userData } = useAuth();
@@ -124,7 +125,7 @@ export default function Transactions() {
               <Text style={styles.dateText}>
                 {startDate.toLocaleDateString()}
               </Text>
-              <Ionicons name="calendar" size={20} color="#1B77BE" />
+              <Ionicons name="calendar" size={20} color={colors.primary} />
             </TouchableOpacity>
           </View>
 
@@ -137,7 +138,7 @@ export default function Transactions() {
               <Text style={styles.dateText}>
                 {endDate.toLocaleDateString()}
               </Text>
-              <Ionicons name="calendar" size={20} color="#1B77BE" />
+              <Ionicons name="calendar" size={20} color={colors.primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -352,24 +353,26 @@ export default function Transactions() {
 const getStyles = (width: number, height: number) =>
   StyleSheet.create({
     container: {
-      marginTop: height * 0.02,
+      marginTop: 12,
       backgroundColor: "#fff",
-      borderRadius: 6,
+      borderRadius: 16,
     },
     listContentContainer: {
       //paddingBottom: height * 0.44,
     },
     border: {
       borderWidth: 1,
-      borderColor: "#1B77BE",
-      borderRadius: 6,
-      paddingHorizontal: width * 0.02,
+      borderColor: "#E5E7EB",
+      borderRadius: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: "#fff",
     },
     bodyText: {
-      //fontWeight: "bold",
-      color: "#1B77BE",
+      fontWeight: "bold",
+      color: colors.primary,
       marginBottom: height * 0.005,
-      fontSize: RFPercentage(2.6),
+      fontSize: RFPercentage(2.2),
     },
     filterContainer: {
       flexDirection: "row",
@@ -406,11 +409,11 @@ const getStyles = (width: number, height: number) =>
     },
     dateText: {
       fontSize: RFPercentage(2),
-      color: "#1B77BE",
+      color: colors.primary,
       marginRight: width * 0.02,
     },
     applyButton: {
-      backgroundColor: "#1B77BE",
+      backgroundColor: colors.primary,
       paddingVertical: 10,
       marginVertical: height * 0.01,
       borderRadius: 8,
@@ -427,7 +430,7 @@ const getStyles = (width: number, height: number) =>
     },
     loader: {
       fontWeight: "bold",
-      color: "#1B77BE",
+      color: colors.primary,
       fontSize: RFPercentage(2.6),
       marginTop: height * 0.021,
       marginLeft: height * 0.01,
@@ -440,7 +443,7 @@ const getStyles = (width: number, height: number) =>
     },
     tableHeader: {
       flexDirection: "row",
-      backgroundColor: "#1B77BE",
+      backgroundColor: colors.primary,
       paddingVertical: height * 0.005,
       paddingHorizontal: width * 0.02,
     },
@@ -476,7 +479,7 @@ const getStyles = (width: number, height: number) =>
     },
     underlineText: {
       textDecorationLine: "underline",
-      color: "#1B77BE",
+      color: colors.primary,
     },
     leftAlign: {
       textAlign: "left",
@@ -505,7 +508,7 @@ const getStyles = (width: number, height: number) =>
     modalTitle: {
       fontSize: RFPercentage(2.5),
       fontWeight: "bold",
-      color: "#4A90E2",
+      color: colors.primary,
       marginBottom: height * 0.02,
       textAlign: "center",
     },
@@ -524,7 +527,7 @@ const getStyles = (width: number, height: number) =>
     },
     closeButton: {
       marginTop: height * 0.02,
-      backgroundColor: "#00205A",
+      backgroundColor: colors.primary,
       padding: width * 0.03,
       borderRadius: 10,
       alignItems: "center",

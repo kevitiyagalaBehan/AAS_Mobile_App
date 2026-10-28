@@ -4,6 +4,7 @@ import AssetAllocationDonut from "./AssetAllocationDonut";
 import { RFPercentage } from "react-native-responsive-fontsize";
 import { ChartData, PortfolioData } from "../src/navigation/types";
 import { getColorForAssetClass } from "../src/utils/assetColors";
+import { colors } from "../src/theme/colors";
 
 export default function AssetAllocationFamily({
   data,
@@ -54,7 +55,7 @@ export default function AssetAllocationFamily({
   return (
     <View style={styles.container}>
       <View style={styles.border}>
-        <Text style={styles.bodyText}>Asset Allocation</Text>
+        <Text style={styles.bodyText}>Allocation chart</Text>
         {chartData.length > 0 ? (
           <AssetAllocationDonut data={chartData} />
         ) : (
@@ -72,26 +73,28 @@ const getStyles = (width: number, height: number) =>
     container: {
       flex: 1,
       backgroundColor: "#fff",
-      borderRadius: 6,
-      marginTop: height * 0.01,
+      borderRadius: 16,
+      marginTop: 12,
     },
     border: {
       borderWidth: 1,
-      borderColor: "#1B77BE",
-      borderRadius: 6,
-      paddingHorizontal: width * 0.02,
+      borderColor: "#E5E7EB",
+      borderRadius: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: "#fff",
     },
     loader: {
       fontWeight: "bold",
-      color: "#1B77BE",
+      color: colors.primary,
       fontSize: RFPercentage(2.6),
       marginTop: height * 0.363,
       marginLeft: height * 0.012,
     },
     bodyText: {
-      //fontWeight: "bold",
-      color: "#1B77BE",
-      fontSize: RFPercentage(2.6),
+      fontWeight: "bold",
+      color: colors.primary,
+      fontSize: RFPercentage(2.2),
       marginTop: height * 0.008,
     },
     errorText: {

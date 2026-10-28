@@ -1,8 +1,10 @@
 export { default as Header } from "./Header";
 export { default as ScreenTitle } from "./ScreenTitle";
 export { default as UserAvatar } from "./UserAvatar";
+export { default as Card } from "./Card";
+export { default as HomeMessageCard } from "./HomeMessageCard";
+export { default as AllocationBreakdown } from "./AllocationBreakdown";
 export { default as PortfolioSummary } from "./PortfolioSummary";
-export { default as ConsolidatedAssetAllocation } from "./ConsolidatedAssetAllocation";
 export { default as AssetAllocationOther } from "./AssetAllocationOther";
 export { default as AssetAllocationFamily } from "./AssetAllocationFamily";
 export { default as PortfolioBalanceSummary } from "./PortfolioBalanceSummary";

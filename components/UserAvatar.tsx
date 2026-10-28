@@ -4,6 +4,7 @@ import { RFPercentage } from "react-native-responsive-fontsize";
 import { Ionicons } from "@expo/vector-icons";
 import { DrawerActions, useNavigation } from "@react-navigation/native";
 import { useAuth } from "../src/context/AuthContext";
+import { colors } from "../src/theme/colors";
 
 type UserAvatarProps = {
   name?: string | null;
@@ -49,7 +50,7 @@ export default function UserAvatar({ name, size = 44 }: UserAvatarProps) {
 
 const styles = StyleSheet.create({
   avatar: {
-    backgroundColor: "#0B1F44",
+    backgroundColor: colors.primary,
     justifyContent: "center",
     alignItems: "center",
   },

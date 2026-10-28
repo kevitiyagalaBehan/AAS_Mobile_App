@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,16 +6,15 @@ import {
   useWindowDimensions,
   TouchableOpacity,
   Modal,
+  TextInput,
 } from "react-native";
 import { RFPercentage } from "react-native-responsive-fontsize";
 import { Ionicons } from "@expo/vector-icons";
-import { useAuth } from "../src/context/AuthContext";
-import { getInvestments } from "../src/utils/pimsApi";
-import {
-  Investment,
-  InvestmentsResponse,
-  Props,
-} from "../src/navigation/types";
+import { Investment, InvestmentsResponse } from "../src/navigation/types";
+import { getColorForAssetClass } from "../src/utils/assetColors";
+import { formatCurrency } from "../src/utils/format";
+import { colors } from "../src/theme/colors";
+import Card from "./Card";
 
 const formatAmount = (value: number) =>
   value.toLocaleString("en-AU", {
@@ -23,177 +22,144 @@ const formatAmount = (value: number) =>
     maximumFractionDigits: 2,
   });
 
-const sumBy = (items: Investment[], key: "marketValue" | "marketPercentage") =>
-  items.reduce((sum, inv) => sum + inv[key], 0);
+type HoldingsProps = {
+  data: InvestmentsResponse;
+};
 
-export default function InvestmentBreakdown({ refreshTrigger }: Props) {
-  const { userData } = useAuth();
+// Holdings grouped by asset class, with search and a details popup
+export default function Holdings({ data }: HoldingsProps) {
   const { width, height } = useWindowDimensions();
-  const [data, setData] = useState<InvestmentsResponse | null>(null);
+  const [query, setQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<Investment | null>(null);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!userData?.authToken || !userData?.accountId) {
-        setLoading(false);
-        return;
-      }
-
-      setLoading(true);
-      try {
-        const res = await getInvestments(
-          userData.authToken,
-          userData.accountId,
-        );
-        setData(res);
-      } catch (err) {
-        setError("Failed to load investment details.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [userData?.authToken, userData?.accountId, refreshTrigger]);
-
   const styles = getStyles(width, height);
 
-  if (loading) {
-    return <Text style={styles.loader}>Loading...</Text>;
-  }
+  const search = query.trim().toLowerCase();
+  const filtered = search
+    ? data.investments.filter(
+        (inv) =>
+          inv.code.toLowerCase().includes(search) ||
+          inv.description?.toLowerCase().includes(search)
+      )
+    : data.investments;
 
-  if (!data) {
-    return <Text style={styles.errorText}>No portfolio data available</Text>;
-  }
+  // Keep the API's order of asset classes
+  const groups = filtered.reduce((acc, inv) => {
+    const group = acc.find((g) => g.assetClass === inv.assetClass);
+    if (group) group.items.push(inv);
+    else acc.push({ assetClass: inv.assetClass, items: [inv] });
+    return acc;
+  }, [] as { assetClass: string; items: Investment[] }[]);
 
-  const grouped = data.investments.reduce(
-    (acc, inv) => {
-      if (!acc[inv.assetCategory]) acc[inv.assetCategory] = {};
-      if (!acc[inv.assetCategory][inv.assetClass])
-        acc[inv.assetCategory][inv.assetClass] = [];
-      acc[inv.assetCategory][inv.assetClass].push(inv);
-      return acc;
-    },
-    {} as Record<string, Record<string, Investment[]>>,
-  );
-
-  const handleRowPress = (item: Investment) => {
-    setSelectedItem(item);
-    setModalVisible(true);
-  };
-
+  // Respect the adviser's settings for which columns clients can see
+  const { settings } = data;
   const detailRows = selectedItem
     ? [
         { label: "Quantity", value: formatAmount(selectedItem.quantity) },
         { label: "Price ($)", value: formatAmount(selectedItem.price) },
-        { label: "Cost ($)", value: formatAmount(selectedItem.bookCost) },
-        {
-          label: "Market value ($)",
-          value: formatAmount(selectedItem.marketValue),
+        settings?.column_BookCost !== false && {
+          label: "Cost ($)",
+          value: formatAmount(selectedItem.bookCost),
         },
+        { label: "Market value ($)", value: formatAmount(selectedItem.marketValue) },
         {
           label: "Portfolio weight (%)",
           value: selectedItem.marketPercentage.toFixed(2),
         },
-        { label: "Est. income ($)", value: formatAmount(selectedItem.income) },
-        { label: "Est. yield (%)", value: selectedItem.yield.toFixed(2) },
-      ]
+        settings?.column_EstIncome !== false && {
+          label: "Est. income ($)",
+          value: formatAmount(selectedItem.income),
+        },
+        settings?.column_EstYield !== false && {
+          label: "Est. yield (%)",
+          value: selectedItem.yield.toFixed(2),
+        },
+      ].filter((row): row is { label: string; value: string } => !!row)
     : [];
 
   return (
-    <View style={styles.container}>
-      <View style={styles.tableHeader}>
-        <Text style={[styles.headerText, styles.labelColumn]}>Holding</Text>
-        <Text style={[styles.headerText, styles.valueColumn]}>Mkt ($)</Text>
-        <Text style={[styles.headerText, styles.percentColumn]}>Mkt (%)</Text>
+    <View>
+      <View style={styles.searchBox}>
+        <Ionicons name="search" size={18} color="#6B7280" />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search holdings"
+          placeholderTextColor="#9CA3AF"
+          value={query}
+          onChangeText={setQuery}
+          autoCorrect={false}
+          autoCapitalize="characters"
+          clearButtonMode="while-editing"
+        />
       </View>
 
-      {Object.entries(grouped).map(([category, classes]) => {
-        const categoryItems = Object.values(classes).flat();
+      {groups.length === 0 && (
+        <Text style={styles.emptyText}>
+          {search ? "No holdings match your search" : "No holdings available"}
+        </Text>
+      )}
+
+      {groups.map(({ assetClass, items }) => {
+        const classColor = getColorForAssetClass(assetClass);
+        const classValue = items.reduce((sum, inv) => sum + inv.marketValue, 0);
+        const classPercent = items.reduce(
+          (sum, inv) => sum + inv.marketPercentage,
+          0
+        );
 
         return (
-          <React.Fragment key={category}>
-            <View style={styles.categoryRow}>
-              <Text style={[styles.categoryText, styles.labelColumn]}>
-                {category.toUpperCase()}
+          <Card key={assetClass} style={styles.groupCard}>
+            <View style={styles.groupHeader}>
+              <View style={[styles.dot, { backgroundColor: classColor }]} />
+              <Text style={styles.groupName} numberOfLines={1}>
+                {assetClass}
               </Text>
-              <Text style={[styles.categoryText, styles.valueColumn]}>
-                {formatAmount(sumBy(categoryItems, "marketValue"))}
-              </Text>
-              <Text style={[styles.categoryText, styles.percentColumn]}>
-                {sumBy(categoryItems, "marketPercentage").toFixed(2)}
-              </Text>
+              <Text style={styles.groupValue}>{formatCurrency(classValue)}</Text>
+              <Text style={styles.groupPercent}>{classPercent.toFixed(2)}%</Text>
             </View>
 
-            {Object.entries(classes).map(([className, items]) => (
-              <React.Fragment key={`${category}-${className}`}>
-                <View style={styles.classRow}>
-                  <Text
-                    style={[styles.classText, styles.labelColumn]}
-                    numberOfLines={1}
-                  >
-                    {className}
-                  </Text>
-                  <Text style={[styles.classText, styles.valueColumn]}>
-                    {formatAmount(sumBy(items, "marketValue"))}
-                  </Text>
-                  <Text style={[styles.classText, styles.percentColumn]}>
-                    {sumBy(items, "marketPercentage").toFixed(2)}
+            {items.map((inv, idx) => (
+              <TouchableOpacity
+                key={`${inv.code}-${idx}`}
+                style={styles.holdingRow}
+                onPress={() => setSelectedItem(inv)}
+                activeOpacity={0.6}
+              >
+                <View style={styles.holdingMain}>
+                  <View style={styles.holdingTopLine}>
+                    <Text style={styles.code} numberOfLines={1}>
+                      {inv.code}
+                    </Text>
+                    <Text style={styles.value}>
+                      {formatCurrency(inv.marketValue)}
+                    </Text>
+                  </View>
+                  <View style={styles.weightTrack}>
+                    <View
+                      style={[
+                        styles.weightFill,
+                        {
+                          width: `${Math.min(Math.max(inv.marketPercentage, 0), 100)}%`,
+                          backgroundColor: classColor,
+                        },
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.weightText}>
+                    {inv.marketPercentage.toFixed(2)}%
                   </Text>
                 </View>
-
-                {items.map((inv, idx) => (
-                  <TouchableOpacity
-                    key={`${inv.code}-${idx}`}
-                    style={[
-                      styles.dataRow,
-                      idx === items.length - 1 && styles.lastDataRow,
-                    ]}
-                    onPress={() => handleRowPress(inv)}
-                    activeOpacity={0.6}
-                  >
-                    <View style={styles.labelColumn}>
-                      <Text style={styles.codeText} numberOfLines={1}>
-                        {inv.code}
-                      </Text>
-                      {!!inv.description && (
-                        <Text style={styles.descriptionText} numberOfLines={1}>
-                          {inv.description}
-                        </Text>
-                      )}
-                    </View>
-                    <Text style={[styles.dataText, styles.valueColumn]}>
-                      {formatAmount(inv.marketValue)}
-                    </Text>
-                    <Text style={[styles.dataText, styles.percentColumn]}>
-                      {inv.marketPercentage.toFixed(2)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </React.Fragment>
+                <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+              </TouchableOpacity>
             ))}
-          </React.Fragment>
+          </Card>
         );
       })}
-
-      <View style={styles.grandTotalRow}>
-        <Text style={[styles.totalText, styles.labelColumn]}>Total</Text>
-        <Text style={[styles.totalText, styles.valueColumn]}>
-          {formatAmount(sumBy(data.investments, "marketValue"))}
-        </Text>
-        <Text style={[styles.totalText, styles.percentColumn]}>
-          {sumBy(data.investments, "marketPercentage").toFixed(2)}
-        </Text>
-      </View>
 
       <Modal
         animationType="fade"
         transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
+        visible={!!selectedItem}
+        onRequestClose={() => setSelectedItem(null)}
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
@@ -209,7 +175,7 @@ export default function InvestmentBreakdown({ refreshTrigger }: Props) {
                     )}
                   </View>
                   <TouchableOpacity
-                    onPress={() => setModalVisible(false)}
+                    onPress={() => setSelectedItem(null)}
                     hitSlop={10}
                     accessibilityLabel="Close"
                   >
@@ -232,7 +198,7 @@ export default function InvestmentBreakdown({ refreshTrigger }: Props) {
 
                 <TouchableOpacity
                   style={styles.closeButton}
-                  onPress={() => setModalVisible(false)}
+                  onPress={() => setSelectedItem(null)}
                 >
                   <Text style={styles.closeButtonText}>Close</Text>
                 </TouchableOpacity>
@@ -247,114 +213,107 @@ export default function InvestmentBreakdown({ refreshTrigger }: Props) {
 
 const getStyles = (width: number, height: number) =>
   StyleSheet.create({
-    container: {
+    searchBox: {
+      flexDirection: "row",
+      alignItems: "center",
       backgroundColor: "#fff",
-      borderRadius: 10,
+      borderRadius: 14,
       borderWidth: 1,
       borderColor: "#E5E7EB",
-      overflow: "hidden",
-      marginBottom: height * 0.01,
+      paddingHorizontal: 14,
+      marginTop: 12,
     },
-    loader: {
-      fontWeight: "bold",
-      color: "#1B77BE",
-      fontSize: RFPercentage(2.6),
-      marginTop: height * 0.021,
-      marginLeft: height * 0.01,
-    },
-    errorText: {
-      color: "red",
+    searchInput: {
+      flex: 1,
+      paddingVertical: 12,
+      marginLeft: 8,
       fontSize: RFPercentage(2),
-      textAlign: "center",
-      marginTop: height * 0.3,
-    },
-    labelColumn: {
-      flex: 1.3,
-      paddingRight: width * 0.02,
-    },
-    valueColumn: {
-      flex: 1.1,
-      textAlign: "right",
-    },
-    percentColumn: {
-      flex: 0.7,
-      textAlign: "right",
-    },
-    tableHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: "#1B77BE",
-      paddingVertical: height * 0.012,
-      paddingHorizontal: width * 0.03,
-    },
-    headerText: {
-      color: "#fff",
-      fontWeight: "bold",
-      fontSize: RFPercentage(1.8),
-    },
-    categoryRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: "#D6E5F3",
-      paddingVertical: height * 0.01,
-      paddingHorizontal: width * 0.03,
-    },
-    categoryText: {
-      fontSize: RFPercentage(1.8),
-      fontWeight: "bold",
-      color: "#0B1F44",
-      letterSpacing: 0.3,
-    },
-    classRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: "#F3F6F9",
-      paddingVertical: height * 0.008,
-      paddingHorizontal: width * 0.03,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: "#E5E7EB",
-    },
-    classText: {
-      fontSize: RFPercentage(1.8),
-      fontWeight: "600",
-      color: "#374151",
-    },
-    dataRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      paddingVertical: height * 0.01,
-      paddingHorizontal: width * 0.03,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: "#E5E7EB",
-    },
-    lastDataRow: {
-      borderBottomWidth: 0,
-    },
-    codeText: {
-      fontSize: RFPercentage(1.9),
-      fontWeight: "bold",
-      color: "#1B77BE",
-    },
-    descriptionText: {
-      fontSize: RFPercentage(1.5),
-      color: "#6B7280",
-      marginTop: 2,
-    },
-    dataText: {
-      fontSize: RFPercentage(1.9),
       color: "#111827",
     },
-    grandTotalRow: {
+    emptyText: {
+      textAlign: "center",
+      color: "#6B7280",
+      fontSize: RFPercentage(1.9),
+      marginTop: height * 0.05,
+    },
+    groupCard: {
+      paddingVertical: 4,
+      paddingHorizontal: 0,
+    },
+    groupHeader: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: "#0B1F44",
-      paddingVertical: height * 0.014,
-      paddingHorizontal: width * 0.03,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: "#E5E7EB",
     },
-    totalText: {
+    dot: {
+      width: 10,
+      height: 10,
+      borderRadius: 3,
+      marginRight: 10,
+    },
+    groupName: {
+      flex: 1,
       fontSize: RFPercentage(2),
       fontWeight: "bold",
-      color: "#fff",
+      color: colors.primary,
+    },
+    groupValue: {
+      fontSize: RFPercentage(1.8),
+      color: "#6B7280",
+      marginRight: 10,
+    },
+    groupPercent: {
+      fontSize: RFPercentage(1.8),
+      fontWeight: "bold",
+      color: colors.primary,
+    },
+    holdingRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    holdingMain: {
+      flex: 1,
+      marginRight: 12,
+    },
+    holdingTopLine: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    code: {
+      flexShrink: 1,
+      fontSize: RFPercentage(2),
+      fontWeight: "bold",
+      color: colors.primary,
+      marginRight: 8,
+    },
+    value: {
+      fontSize: RFPercentage(2),
+      fontWeight: "600",
+      color: "#111827",
+    },
+    weightTrack: {
+      height: 5,
+      borderRadius: 3,
+      backgroundColor: "#E5E7EB",
+      overflow: "hidden",
+      marginTop: 8,
+      width: "80%",
+    },
+    weightFill: {
+      height: "100%",
+      borderRadius: 3,
+    },
+    weightText: {
+      alignSelf: "flex-end",
+      fontSize: RFPercentage(1.6),
+      color: "#6B7280",
+      marginTop: 2,
     },
     modalContainer: {
       flex: 1,
@@ -376,7 +335,7 @@ const getStyles = (width: number, height: number) =>
     modalTitle: {
       fontSize: RFPercentage(2.6),
       fontWeight: "bold",
-      color: "#0B1F44",
+      color: colors.primary,
     },
     modalSubtitle: {
       fontSize: RFPercentage(1.8),
@@ -404,7 +363,7 @@ const getStyles = (width: number, height: number) =>
     },
     closeButton: {
       marginTop: height * 0.02,
-      backgroundColor: "#0B1F44",
+      backgroundColor: colors.primary,
       padding: width * 0.03,
       borderRadius: 10,
       alignItems: "center",

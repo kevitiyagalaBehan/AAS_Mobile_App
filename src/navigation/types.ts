@@ -36,13 +36,15 @@ export type RootStackParamList = {
 // Bottom Tab Navigation
 export type BottomTabParamListOther = {
   HomeOther: { authToken: string; accountId: string };
+  Portfolio: undefined;
+  Super: undefined;
   Inbox: { authToken: string; accountId: string };
   ESigning: { authToken: string; accountId: string };
-  Document: undefined;
 };
 
 export type BottomTabParamListFamily = {
   HomeFamily: { authToken: string; accountId: string };
+  Portfolio: undefined;
   Inbox: { authToken: string; accountId: string };
   ESigning: { authToken: string; accountId: string };
 };
@@ -52,7 +54,7 @@ export type DrawerParamListOther = {
   MainTabs: { authToken: string; accountId: string };
   Details: undefined;
   Transactions: undefined;
-  Portfolio: undefined;
+  Document: undefined;
 };
 
 export type DrawerMenuItem = {
@@ -345,7 +347,7 @@ export interface ClientAccountDetails {
 
 export interface Signatory {
   esigningDetailId: string | null;
-  esigningStatus: "Signed" | null;
+  esigningStatus: "Signed" | "Viewed" | null;
   signatoryEmail: string;
   signatoryName: string;
 }

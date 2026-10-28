@@ -7,6 +7,7 @@ import { useAuth } from "../src/context/AuthContext";
 import { getSuperFundDetails } from "../src/utils/pimsApi";
 import { Props, PortfolioItem } from "../src/navigation/types";
 import { useIsFocused } from "@react-navigation/native";
+import { colors } from "../src/theme/colors";
 
 // react-native-chart-kit BarChart defaults (style.paddingRight is used as the left inset)
 const CHART_PADDING_LEFT = 64;
@@ -168,7 +169,7 @@ export default function PortfolioBalanceSummaryHome({ refreshTrigger }: Props) {
                 width={BAR_WIDTH + 6}
                 height={Math.max(plotBottom - barY(selected.value), 0) + 3}
                 fill="none"
-                stroke="#0B1F44"
+                stroke={colors.primary}
                 strokeWidth={2}
                 rx={3}
               />
@@ -218,18 +219,20 @@ const getStyles = (width: number, height: number) =>
     container: {
       flex: 1,
       backgroundColor: "#fff",
-      borderRadius: 6,
-      marginTop: height * 0.01,
+      borderRadius: 16,
+      marginTop: 12,
     },
     border: {
       borderWidth: 1,
-      borderColor: "#1B77BE",
-      borderRadius: 6,
-      paddingHorizontal: width * 0.02,
+      borderColor: "#E5E7EB",
+      borderRadius: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: "#fff",
     },
     loader: {
       fontWeight: "bold",
-      color: "#1B77BE",
+      color: colors.primary,
       fontSize: RFPercentage(2.6),
       marginTop: height * 0.021,
       marginLeft: height * 0.01,
@@ -244,10 +247,10 @@ const getStyles = (width: number, height: number) =>
       minHeight: height * 0.4,
     },
     bodyText: {
-      //fontWeight: "bold",
-      color: "#1B77BE",
+      fontWeight: "bold",
+      color: colors.primary,
       marginBottom: height * 0.005,
-      fontSize: RFPercentage(2.6),
+      fontSize: RFPercentage(2.2),
     },
     errorContainer: {
       flex: 1,
@@ -284,6 +287,6 @@ const getStyles = (width: number, height: number) =>
     tooltipValue: {
       fontSize: RFPercentage(1.9),
       fontWeight: "bold",
-      color: "#0B1F44",
+      color: colors.primary,
     },
   });

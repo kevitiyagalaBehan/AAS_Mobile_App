@@ -22,6 +22,7 @@ import { Documents, Folders } from "../src/navigation/types";
 import { Base64 } from "js-base64";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useRefreshTrigger } from "../hooks/useRefreshTrigger";
+import { colors } from "../src/theme/colors";
 
 type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
 
@@ -172,7 +173,7 @@ export default function Document() {
           updateFolderAndDocuments(rootPath);
         }}
       >
-        <Text style={{ color: "#1B77BE", fontSize: RFPercentage(2) }}>
+        <Text style={{ color: colors.primary, fontSize: RFPercentage(2) }}>
           Home
         </Text>
       </TouchableOpacity>
@@ -181,7 +182,7 @@ export default function Document() {
           {" > "}
           <Text
             style={{
-              color: "#1B77BE",
+              color: colors.primary,
               textDecorationLine: "underline",
               fontSize: RFPercentage(2),
             }}
@@ -523,15 +524,16 @@ export default function Document() {
 const getStyles = (width: number, height: number) =>
   StyleSheet.create({
     container: {
-      marginTop: height * 0.02,
+      marginTop: 12,
       backgroundColor: "#fff",
-      borderRadius: 6,
+      borderRadius: 16,
     },
     border: {
       borderWidth: 1,
-      borderColor: "#1B77BE",
-      borderRadius: 6,
-      padding: width * 0.02,
+      borderColor: "#E5E7EB",
+      borderRadius: 16,
+      padding: 16,
+      backgroundColor: "#fff",
     },
     tabContainer: {
       flexDirection: "row",
@@ -543,25 +545,25 @@ const getStyles = (width: number, height: number) =>
       alignItems: "center",
     },
     activeTab: {
-      backgroundColor: "#1B77BE",
+      backgroundColor: colors.primary,
     },
     tabText: {
       fontSize: RFPercentage(2),
       fontWeight: "bold",
-      color: "#1B77BE",
+      color: colors.primary,
     },
     activeTabText: {
       color: "#fff",
     },
     bodyText: {
-      //fontWeight: "bold",
-      color: "#1B77BE",
+      fontWeight: "bold",
+      color: colors.primary,
       marginBottom: height * 0.005,
-      fontSize: RFPercentage(2.6),
+      fontSize: RFPercentage(2.2),
     },
     loader: {
       fontWeight: "bold",
-      color: "#1B77BE",
+      color: colors.primary,
       fontSize: RFPercentage(2.6),
       marginTop: height * 0.021,
       marginLeft: height * 0.01,
@@ -574,7 +576,7 @@ const getStyles = (width: number, height: number) =>
     },
     tableHeader: {
       flexDirection: "row",
-      backgroundColor: "#1B77BE",
+      backgroundColor: colors.primary,
       paddingVertical: height * 0.005,
       paddingHorizontal: width * 0.02,
       //marginBottom: height * 0.001,
@@ -599,7 +601,7 @@ const getStyles = (width: number, height: number) =>
     },
     underlineText: {
       textDecorationLine: "underline",
-      color: "#1B77BE",
+      color: colors.primary,
     },
     leftAlign: {
       textAlign: "left",
@@ -611,7 +613,7 @@ const getStyles = (width: number, height: number) =>
       textAlign: "right",
     },
     button: {
-      backgroundColor: "#1B77BE",
+      backgroundColor: colors.primary,
       paddingVertical: height * 0.007,
       paddingHorizontal: width * 0.04,
       borderRadius: 6,
@@ -642,7 +644,7 @@ const getStyles = (width: number, height: number) =>
     modalTitle: {
       fontSize: RFPercentage(2.5),
       fontWeight: "bold",
-      color: "#4A90E2",
+      color: colors.primary,
       marginBottom: height * 0.02,
       textAlign: "center",
     },
@@ -661,7 +663,7 @@ const getStyles = (width: number, height: number) =>
     },
     closeButton: {
       marginTop: height * 0.02,
-      backgroundColor: "#00205A",
+      backgroundColor: colors.primary,
       padding: width * 0.03,
       borderRadius: 10,
       alignItems: "center",

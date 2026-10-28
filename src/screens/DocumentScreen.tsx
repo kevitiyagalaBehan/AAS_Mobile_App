@@ -14,7 +14,7 @@ export default function DocumentScreen() {
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
-        <ScreenTitle title="Documents" />
+        <ScreenTitle title="Documents" showBack />
           <View style={styles.bodySection}>
             <Document />
           </View>

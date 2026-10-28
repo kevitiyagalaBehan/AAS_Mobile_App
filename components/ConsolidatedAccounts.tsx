@@ -1,28 +1,25 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Modal,
-  useWindowDimensions,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useState, useEffect } from "react";
 import { RFPercentage } from "react-native-responsive-fontsize";
+import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../src/context/AuthContext";
 import { getConsolidateData } from "../src/utils/pimsApi";
 import { ConsolidateData, Props } from "../src/navigation/types";
+import { formatCurrency } from "../src/utils/format";
+import { colors } from "../src/theme/colors";
+import Card from "./Card";
+import DetailModal from "./DetailModal";
 
+// Each account in the family group with its share of the total, laid out like
+// the Portfolio > Holdings rows
 export default function ConsolidatedAccounts({ refreshTrigger }: Props) {
   const { userData } = useAuth();
-  const { width, height } = useWindowDimensions();
   const [accounts, setAccounts] = useState<ConsolidateData[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<ConsolidateData | null>(
     null
   );
-  const [modalVisible, setModalVisible] = useState(false);
-  const styles = getStyles(width, height);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -32,6 +29,7 @@ export default function ConsolidatedAccounts({ refreshTrigger }: Props) {
       }
 
       setLoading(true);
+      setError(null);
       try {
         const data = await getConsolidateData(
           userData.authToken,
@@ -39,7 +37,7 @@ export default function ConsolidatedAccounts({ refreshTrigger }: Props) {
         );
         setAccounts(data);
       } catch (err) {
-        setError("Failed to load investment details");
+        setError("Failed to load account details");
       } finally {
         setLoading(false);
       }
@@ -48,294 +46,199 @@ export default function ConsolidatedAccounts({ refreshTrigger }: Props) {
     fetchData();
   }, [userData?.authToken, userData?.accountId, refreshTrigger]);
 
-  const handleCodePress = (item: ConsolidateData) => {
-    setSelectedItem(item);
-    setModalVisible(true);
-  };
-
-  if (loading) {
-    return <Text style={styles.loader}>Loading...</Text>;
-  }
-
-  if (error) {
-    return <Text style={styles.errorText}>{error}</Text>;
-  }
-
-  if (!accounts || accounts.length === 0) {
-    return <Text style={styles.errorText}>No consolidate data available</Text>;
-  }
-
-  const totalPortfolioValue = accounts?.reduce(
-    (sum, item) => sum + item.portfolioValue,
-    0
+  const sorted = [...(accounts ?? [])].sort(
+    (a, b) => b.portfolioValue - a.portfolioValue
   );
-
-  const totalPortfolioPercentage = accounts?.reduce(
+  const totalValue = sorted.reduce((sum, item) => sum + item.portfolioValue, 0);
+  const totalPercentage = sorted.reduce(
     (sum, item) => sum + item.portfolioPercentage,
     0
   );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.border}>
-        <Text style={styles.bodyText}>Consolidated Accounts</Text>
-
-        <View style={styles.tableContainer}>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.headerCell1, { flex: 1 }]}>Code</Text>
-            <Text style={[styles.headerCell2, { flex: 1 }]}>Ammount $</Text>
-            <Text style={[styles.headerCell2, { flex: 1 }]}>%</Text>
-          </View>
-
-          {accounts?.map((item, index) => (
-            <View
-              key={item.clientCode}
-              style={[
-                styles.dataRow,
-                { backgroundColor: index % 2 === 0 ? "#eee" : "#fff" },
-              ]}
-            >
-              <TouchableOpacity
-                onPress={() => handleCodePress(item)}
-                style={{ flex: 1 }}
-              >
-                <Text
-                  style={[
-                    styles.dataCell,
-                    styles.boldText,
-                    styles.leftAlign,
-                    styles.underlineText,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {item.clientCode}
-                </Text>
-              </TouchableOpacity>
-              <Text
-                style={[styles.dataCell, styles.rightAlign, { flex: 1 }]}
-                numberOfLines={1}
-              >
-                {item.portfolioValue.toLocaleString()}
-              </Text>
-              <Text
-                style={[styles.dataCell, styles.rightAlign, { flex: 1 }]}
-                numberOfLines={1}
-              >
-                {item.portfolioPercentage.toFixed(2)}
-              </Text>
-            </View>
-          ))}
-          <View style={[styles.dataRow, { backgroundColor: "#D3EAFD" }]}>
-            <Text
-              style={[
-                styles.dataCell,
-                styles.boldText,
-                styles.leftAlign,
-                { flex: 1 },
-              ]}
-            >
-              Total
-            </Text>
-            <Text
-              style={[
-                styles.dataCell,
-                styles.boldText,
-                styles.rightAlign,
-                { flex: 1 },
-              ]}
-            >
-              {totalPortfolioValue?.toLocaleString()}
-            </Text>
-            <Text
-              style={[
-                styles.dataCell,
-                styles.boldText,
-                styles.rightAlign,
-                { flex: 1 },
-              ]}
-            >
-              {totalPortfolioPercentage?.toFixed(2)}%
-            </Text>
-          </View>
-        </View>
-
-        <Modal
-          animationType="fade"
-          transparent={true}
-          visible={modalVisible}
-          onRequestClose={() => setModalVisible(false)}
-        >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              {selectedItem && (
-                <>
-                  <Text style={styles.modalTitle}>
-                    {selectedItem.clientCode}
-                  </Text>
-                  <View style={styles.modalRow}>
-                    <Text style={styles.modalLabel}>Name:</Text>
-                    <Text style={styles.modalText}>
-                      {selectedItem.clientName}
-                    </Text>
-                  </View>
-                  <View style={styles.modalRow}>
-                    <Text style={styles.modalLabel}>Entity:</Text>
-                    <Text style={styles.modalText}>
-                      {selectedItem.entityType}
-                    </Text>
-                  </View>
-                  <View style={styles.modalRow}>
-                    <Text style={styles.modalLabel}>Amount:</Text>
-                    <Text style={styles.modalText}>
-                      ${selectedItem.portfolioValue.toLocaleString()}
-                    </Text>
-                  </View>
-                  <View style={styles.modalRow}>
-                    <Text style={styles.modalLabel}>Percentage:</Text>
-                    <Text style={styles.modalText}>
-                      {selectedItem.portfolioPercentage.toFixed(2)}%
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.closeButton}
-                    onPress={() => setModalVisible(false)}
-                  >
-                    <Text style={styles.closeButtonText}>Close</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-            </View>
-          </View>
-        </Modal>
+    <Card style={styles.card}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Consolidated accounts</Text>
       </View>
-    </View>
+
+      {loading ? (
+        <Text style={styles.muted}>Loading...</Text>
+      ) : error ? (
+        <Text style={styles.muted}>{error}</Text>
+      ) : sorted.length === 0 ? (
+        <Text style={styles.muted}>No consolidated data available</Text>
+      ) : (
+        <>
+          {sorted.map((item) => (
+            <TouchableOpacity
+              key={item.clientId || item.clientCode}
+              style={styles.row}
+              onPress={() => setSelectedItem(item)}
+              activeOpacity={0.6}
+            >
+              <View style={styles.main}>
+                <View style={styles.topLine}>
+                  <Text style={styles.name} numberOfLines={1}>
+                    {item.clientName || item.clientCode}
+                  </Text>
+                  <Text style={styles.value}>
+                    {formatCurrency(item.portfolioValue)}
+                  </Text>
+                </View>
+                <Text style={styles.meta} numberOfLines={1}>
+                  {[item.clientCode, item.entityType].filter(Boolean).join(" · ")}
+                </Text>
+                <View style={styles.weightTrack}>
+                  <View
+                    style={[
+                      styles.weightFill,
+                      {
+                        width: `${Math.min(Math.max(item.portfolioPercentage, 0), 100)}%`,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.weightText}>
+                  {item.portfolioPercentage.toFixed(2)}%
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+            </TouchableOpacity>
+          ))}
+
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalValue}>{formatCurrency(totalValue)}</Text>
+            <Text style={styles.totalPercent}>{totalPercentage.toFixed(2)}%</Text>
+          </View>
+        </>
+      )}
+
+      <DetailModal
+        visible={!!selectedItem}
+        title={selectedItem?.clientName || selectedItem?.clientCode || ""}
+        subtitle={selectedItem?.clientCode}
+        rows={
+          selectedItem
+            ? [
+                { label: "Entity type", value: selectedItem.entityType },
+                {
+                  label: "Market value",
+                  value: formatCurrency(selectedItem.portfolioValue),
+                },
+                {
+                  label: "Share of total",
+                  value: `${selectedItem.portfolioPercentage.toFixed(2)}%`,
+                },
+              ]
+            : []
+        }
+        onClose={() => setSelectedItem(null)}
+      />
+    </Card>
   );
 }
 
-const getStyles = (width: number, height: number) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      marginTop: height * 0.01,
-      backgroundColor: "#fff",
-      borderRadius: 6,
-    },
-    border: {
-      borderWidth: 1,
-      borderColor: "#1B77BE",
-      borderRadius: 6,
-      paddingHorizontal: width * 0.02,
-    },
-    bodyText: {
-      //fontWeight: "bold",
-      color: "#1B77BE",
-      marginBottom: height * 0.005,
-      fontSize: RFPercentage(2.6),
-    },
-    tableContainer: {
-      marginBottom: height * 0.01,
-    },
-    loader: {
-      fontWeight: "bold",
-      color: "#1B77BE",
-      fontSize: RFPercentage(2.6),
-      marginTop: height * 0.021,
-      marginLeft: height * 0.01,
-    },
-    errorText: {
-      color: "red",
-      fontSize: RFPercentage(2),
-      textAlign: "center",
-      marginTop: height * 0.3,
-    },
-    tableHeader: {
-      flexDirection: "row",
-      backgroundColor: "#1B77BE",
-      paddingVertical: height * 0.005,
-      paddingHorizontal: width * 0.02,
-    },
-    headerCell1: {
-      color: "white",
-      fontWeight: "bold",
-      fontSize: RFPercentage(2),
-      textAlign: "left",
-    },
-    headerCell2: {
-      color: "white",
-      fontWeight: "bold",
-      fontSize: RFPercentage(2),
-      textAlign: "right",
-    },
-    dataRow: {
-      flexDirection: "row",
-      paddingVertical: height * 0.005,
-      paddingHorizontal: width * 0.02,
-      alignItems: "center",
-      borderWidth: 1,
-      borderColor: "#ccc",
-    },
-    dataCell: {
-      fontSize: RFPercentage(2),
-      color: "#333",
-    },
-    underlineText: {
-      textDecorationLine: "underline",
-      color: "#4A90E2",
-    },
-    leftAlign: {
-      textAlign: "left",
-    },
-    centerAlign: {
-      textAlign: "center",
-    },
-    rightAlign: {
-      textAlign: "right",
-    },
-    boldText: {
-      fontWeight: "bold",
-    },
-    modalContainer: {
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
-      backgroundColor: "rgba(0,0,0,0.5)",
-    },
-    modalContent: {
-      width: width * 0.8,
-      backgroundColor: "white",
-      borderRadius: 10,
-      padding: width * 0.05,
-    },
-    modalTitle: {
-      fontSize: RFPercentage(2.5),
-      fontWeight: "bold",
-      color: "#4A90E2",
-      marginBottom: height * 0.02,
-      textAlign: "center",
-    },
-    modalRow: {
-      flexDirection: "row",
-      marginBottom: height * 0.015,
-    },
-    modalLabel: {
-      fontWeight: "bold",
-      width: width * 0.3,
-      fontSize: RFPercentage(2),
-    },
-    modalText: {
-      flex: 1,
-      fontSize: RFPercentage(2),
-    },
-    closeButton: {
-      marginTop: height * 0.02,
-      backgroundColor: "#00205A",
-      padding: width * 0.03,
-      borderRadius: 10,
-      alignItems: "center",
-    },
-    closeButtonText: {
-      color: "white",
-      fontWeight: "bold",
-      fontSize: RFPercentage(2),
-    },
-  });
+const styles = StyleSheet.create({
+  card: {
+    paddingHorizontal: 0,
+    paddingVertical: 4,
+    overflow: "hidden",
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#E5E7EB",
+  },
+  title: {
+    fontSize: RFPercentage(2.2),
+    fontWeight: "bold",
+    color: colors.primary,
+  },
+  muted: {
+    textAlign: "center",
+    color: "#6B7280",
+    fontSize: RFPercentage(1.9),
+    paddingVertical: 20,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#F3F4F6",
+  },
+  main: {
+    flex: 1,
+    marginRight: 12,
+  },
+  topLine: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  name: {
+    flexShrink: 1,
+    fontSize: RFPercentage(2),
+    fontWeight: "bold",
+    color: colors.primary,
+    marginRight: 8,
+  },
+  value: {
+    fontSize: RFPercentage(2),
+    fontWeight: "600",
+    color: "#111827",
+  },
+  meta: {
+    fontSize: RFPercentage(1.6),
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  weightTrack: {
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: "#E5E7EB",
+    overflow: "hidden",
+    marginTop: 8,
+    width: "80%",
+  },
+  weightFill: {
+    height: "100%",
+    borderRadius: 3,
+    backgroundColor: colors.primary,
+  },
+  weightText: {
+    alignSelf: "flex-end",
+    fontSize: RFPercentage(1.6),
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  totalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.primarySoft,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginTop: 4,
+    marginBottom: -4,
+  },
+  totalLabel: {
+    flex: 1,
+    fontSize: RFPercentage(2),
+    fontWeight: "bold",
+    color: colors.primary,
+  },
+  totalValue: {
+    fontSize: RFPercentage(2),
+    fontWeight: "bold",
+    color: colors.primary,
+    marginRight: 12,
+  },
+  totalPercent: {
+    fontSize: RFPercentage(1.9),
+    fontWeight: "bold",
+    color: colors.primary,
+  },
+});

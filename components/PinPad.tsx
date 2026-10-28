@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { RFPercentage } from "react-native-responsive-fontsize";
+import { colors } from "../src/theme/colors";
 
 type PinPadProps = {
   length: number;
@@ -60,7 +61,7 @@ export default function PinPad({
         accessibilityLabel={`${value.length} of ${length} digits entered`}
       >
         {loading ? (
-          <ActivityIndicator size="small" color="#00205A" />
+          <ActivityIndicator size="small" color={colors.primary} />
         ) : (
           Array.from({ length }).map((_, i) => (
             <View
@@ -98,7 +99,7 @@ export default function PinPad({
                   <Ionicons
                     name="backspace-outline"
                     size={RFPercentage(3.5)}
-                    color="#00205A"
+                    color={colors.primary}
                   />
                 ) : (
                   <Text style={styles.keyText} maxFontSizeMultiplier={1.2}>
@@ -134,11 +135,11 @@ const getStyles = (width: number, height: number) => {
       height: 16,
       borderRadius: 8,
       borderWidth: 2,
-      borderColor: "#00205A",
+      borderColor: colors.primary,
       marginHorizontal: 8,
     },
     dotFilled: {
-      backgroundColor: "#00205A",
+      backgroundColor: colors.primary,
     },
     dotError: {
       borderColor: "#ff4444",
@@ -161,7 +162,7 @@ const getStyles = (width: number, height: number) => {
     },
     keyText: {
       fontSize: RFPercentage(3.5),
-      color: "#00205A",
+      color: colors.primary,
       fontWeight: "600",
     },
   });

@@ -10,7 +10,7 @@ export default function InboxListScreen() {
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
-        <ScreenTitle title="Inbox" />
+        <ScreenTitle title="Messages" />
         <View style={styles.bodySection}>
           <InboxList />
         </View>

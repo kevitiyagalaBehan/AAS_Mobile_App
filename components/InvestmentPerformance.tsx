@@ -7,6 +7,7 @@ import { useAuth } from "../src/context/AuthContext";
 import { getInvestmentPerformance } from "../src/utils/pimsApi";
 import { InvestmentPerformanceDetails, Props } from "../src/navigation/types";
 import { useWindowSize } from "../hooks/useWindowSize";
+import { colors } from "../src/theme/colors";
 
 const MONTHS = [
   "Jan",
@@ -150,7 +151,7 @@ export default function InvestmentPerformance({ refreshTrigger }: Props) {
                     {
                       data: values,
                       strokeWidth: 2,
-                      color: () => "#1B77BE",
+                      color: () => colors.primary,
                     },
                   ],
                 }}
@@ -170,11 +171,11 @@ export default function InvestmentPerformance({ refreshTrigger }: Props) {
                   backgroundGradientFrom: "#fff",
                   backgroundGradientTo: "#fff",
                   decimalPlaces: 1,
-                  color: (opacity = 1) => `rgba(27, 119, 190, ${opacity})`,
+                  color: (opacity = 1) => `rgba(${colors.primaryRgb}, ${opacity})`,
                   labelColor: () => "#6B7280",
-                  fillShadowGradientFrom: "#1B77BE",
+                  fillShadowGradientFrom: colors.primary,
                   fillShadowGradientFromOpacity: 0.25,
-                  fillShadowGradientTo: "#1B77BE",
+                  fillShadowGradientTo: colors.primary,
                   fillShadowGradientToOpacity: 0.02,
                   propsForBackgroundLines: {
                     stroke: "#E5E7EB",
@@ -200,7 +201,7 @@ export default function InvestmentPerformance({ refreshTrigger }: Props) {
                         cx={selectedPoint.x}
                         cy={selectedPoint.y}
                         r={5}
-                        fill="#1B77BE"
+                        fill={colors.primary}
                         stroke="#fff"
                         strokeWidth={2}
                       />
@@ -266,27 +267,29 @@ const getStyles = (width: number, height: number) =>
     container: {
       flex: 1,
       backgroundColor: "#fff",
-      marginTop: height * 0.01,
-      borderRadius: 6,
+      marginTop: 12,
+      borderRadius: 16,
     },
     border: {
       borderWidth: 1,
-      borderColor: "#1B77BE",
-      borderRadius: 6,
-      paddingHorizontal: width * 0.02,
+      borderColor: "#E5E7EB",
+      borderRadius: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: "#fff",
     },
     loader: {
       fontWeight: "bold",
-      color: "#1B77BE",
+      color: colors.primary,
       fontSize: RFPercentage(2.6),
       marginTop: height * 0.021,
       marginLeft: height * 0.01,
     },
     bodyText: {
-      //fontWeight: "bold",
-      color: "#1B77BE",
+      fontWeight: "bold",
+      color: colors.primary,
       marginBottom: height * 0.005,
-      fontSize: RFPercentage(2.6),
+      fontSize: RFPercentage(2.2),
     },
     summaryRow: {
       flexDirection: "row",

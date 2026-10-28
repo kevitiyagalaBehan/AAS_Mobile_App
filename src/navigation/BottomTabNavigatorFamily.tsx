@@ -1,7 +1,10 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
+import { getFocusedRouteNameFromRoute } from "@react-navigation/native";
 import HomeScreenFamily from "../screens/HomeScreenFamily";
+import PortfolioScreenFamily from "../screens/PortfolioScreenFamily";
+import { colors } from "../theme/colors";
 import ESigningScreen from "../screens/ESigningScreen";
 import { BottomTabParamListFamily } from "./types";
 import { RFPercentage } from "react-native-responsive-fontsize";
@@ -16,16 +19,18 @@ export default function BottomTabFamily() {
   const { toBeSignedCount } = useESign();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const tabBarStyle = {
+    height: height * 0.075 + insets.bottom,
+    paddingTop: height * 0.01,
+    paddingBottom: insets.bottom,
+  };
 
   return (
     <Tab.Navigator
       initialRouteName="HomeFamily"
       screenOptions={{
-        tabBarStyle: {
-          height: height * 0.075 + insets.bottom,
-          paddingTop: height * 0.01,
-          paddingBottom: insets.bottom,
-        },
+        tabBarStyle,
+        tabBarActiveTintColor: colors.link,
         tabBarLabelStyle: { fontSize: RFPercentage(1.4), fontWeight: "bold" },
       }}
     >
@@ -41,15 +46,31 @@ export default function BottomTabFamily() {
         }}
       />
       <Tab.Screen
-        name="Inbox"
-        component={InboxStackNavigator}
+        name="Portfolio"
+        component={PortfolioScreenFamily}
         options={{
           headerShown: false,
-          tabBarLabel: "Inbox",
+          tabBarLabel: "Portfolio",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="pie-chart" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Inbox"
+        component={InboxStackNavigator}
+        options={({ route }) => ({
+          headerShown: false,
+          tabBarLabel: "Messages",
+          // Hide the bar inside a chat, as for client accounts
+          tabBarStyle:
+            getFocusedRouteNameFromRoute(route) === "InboxDetail"
+              ? { display: "none" }
+              : tabBarStyle,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="chatbox-ellipses" size={size} color={color} />
           ),
-        }}
+        })}
       />
       <Tab.Screen
         name="ESigning"

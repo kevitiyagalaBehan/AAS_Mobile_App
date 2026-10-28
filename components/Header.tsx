@@ -17,12 +17,14 @@ import {
   getSuperFundName,
   getLinkedUsers,
   getEntityAccounts,
-  getAssetAllocationSummaryOther,
   getAssetAllocationSummaryFamily,
+  getInvestments,
 } from "../src/utils/pimsApi";
+import { getHoldingsTotal } from "../src/utils/format";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { RootStackParamList, AccountOption } from "../src/navigation/types";
+import { colors } from "../src/theme/colors";
 
 type HeaderProps = {
   refreshTrigger?: number;
@@ -122,11 +124,16 @@ export default function Header({ refreshTrigger }: HeaderProps) {
         return;
       }
 
-      const summary = await getAssetAllocationSummaryOther(
-        userData.authToken,
-        userData.accountId
-      );
-      setTotalBalance(summary ? summary.totalMarketValue : null);
+      // Same source as the Portfolio tab's "Market value" so the two always match
+      try {
+        const holdings = await getInvestments(
+          userData.authToken,
+          userData.accountId
+        );
+        setTotalBalance(getHoldingsTotal(holdings.investments));
+      } catch {
+        setTotalBalance(null);
+      }
     };
 
     fetchBalance();
@@ -261,7 +268,7 @@ export default function Header({ refreshTrigger }: HeaderProps) {
                       {option.value}
                     </Text>
                     {isSelected && (
-                      <Ionicons name="checkmark" size={20} color="#1B77BE" />
+                      <Ionicons name="checkmark" size={20} color={colors.primary} />
                     )}
                   </TouchableOpacity>
                 );
@@ -312,7 +319,7 @@ const getStyles = (width: number, height: number) =>
       marginLeft: 6,
     },
     balanceCard: {
-      backgroundColor: "#0B1F44",
+      backgroundColor: colors.primary,
       borderRadius: 18,
       paddingHorizontal: width * 0.05,
       paddingVertical: height * 0.02,
@@ -342,7 +349,7 @@ const getStyles = (width: number, height: number) =>
     modalTitle: {
       fontSize: RFPercentage(2.2),
       fontWeight: "bold",
-      color: "#0B1F44",
+      color: colors.primary,
       paddingHorizontal: 16,
       paddingBottom: 8,
     },
@@ -361,7 +368,7 @@ const getStyles = (width: number, height: number) =>
       color: "#333",
     },
     dropdownItemSelected: {
-      color: "#1B77BE",
+      color: colors.primary,
       fontWeight: "bold",
     },
   });

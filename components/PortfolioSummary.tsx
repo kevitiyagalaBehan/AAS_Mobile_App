@@ -5,6 +5,7 @@ import { PortfolioData, Props } from "../src/navigation/types";
 import { getAssetAllocationSummaryOther } from "../src/utils/pimsApi";
 import { useAuth } from "../src/context/AuthContext";
 import { getColorForAssetClass } from "../src/utils/assetColors";
+import { colors } from "../src/theme/colors";
 
 export default function PortfolioSummaryOther({ refreshTrigger }: Props) {
   const { userData } = useAuth();
@@ -165,27 +166,29 @@ const getStyles = (width: number, height: number) =>
       flex: 1,
       backgroundColor: "#fff",
       //marginBottom: height * 0.01,
-      marginTop: height * 0.02,
-      borderRadius: 6,
+      marginTop: 12,
+      borderRadius: 16,
     },
     border: {
       borderWidth: 1,
-      borderColor: "#1B77BE",
-      borderRadius: 6,
-      paddingHorizontal: width * 0.02,
+      borderColor: "#E5E7EB",
+      borderRadius: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: "#fff",
     },
     loader: {
       fontWeight: "bold",
-      color: "#1B77BE",
+      color: colors.primary,
       fontSize: RFPercentage(2.6),
       marginTop: height * 0.01,
       marginLeft: height * 0.012,
     },
     bodyText: {
-      //fontWeight: "bold",
-      color: "#1B77BE",
+      fontWeight: "bold",
+      color: colors.primary,
       marginBottom: height * 0.005,
-      fontSize: RFPercentage(2.6),
+      fontSize: RFPercentage(2.2),
     },
     tableContainer: {
       marginBottom: height * 0.01,
@@ -199,7 +202,7 @@ const getStyles = (width: number, height: number) =>
     },
     tableHeader: {
       flexDirection: "row",
-      backgroundColor: "#1B77BE",
+      backgroundColor: colors.primary,
       paddingVertical: height * 0.005,
       paddingHorizontal: width * 0.02,
     },

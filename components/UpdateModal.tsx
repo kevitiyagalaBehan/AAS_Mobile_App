@@ -8,6 +8,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { RFPercentage } from "react-native-responsive-fontsize";
+import { colors } from "../src/theme/colors";
 
 export default function UpdateModal({
   visible,
@@ -65,7 +66,7 @@ const getStyles = (width: number, height: number) =>
     },
     button: {
       marginTop: height * 0.02,
-      backgroundColor: "#00205A",
+      backgroundColor: colors.primary,
       padding: width * 0.03,
       borderRadius: 10,
       alignItems: "center",

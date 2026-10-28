@@ -10,13 +10,20 @@ import { RFPercentage } from "react-native-responsive-fontsize";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../src/context/AuthContext";
+import { colors } from "../src/theme/colors";
 
 type ScreenTitleProps = {
   title: string;
   showBack?: boolean;
+  // Replaces the default account-name subtitle
+  subtitle?: React.ReactNode;
 };
 
-export default function ScreenTitle({ title, showBack = false }: ScreenTitleProps) {
+export default function ScreenTitle({
+  title,
+  showBack = false,
+  subtitle,
+}: ScreenTitleProps) {
   const navigation = useNavigation<any>();
   const { currentAccountName } = useAuth();
   const { width, height } = useWindowDimensions();
@@ -36,16 +43,16 @@ export default function ScreenTitle({ title, showBack = false }: ScreenTitleProp
           accessibilityRole="button"
           accessibilityLabel="Back to home"
         >
-          <Ionicons name="chevron-back" size={RFPercentage(3)} color="#0B1F44" />
+          <Ionicons name="chevron-back" size={RFPercentage(3)} color={colors.primary} />
         </TouchableOpacity>
       )}
       <View style={styles.textContainer}>
         <Text style={styles.title} accessibilityRole="header">
           {title}
         </Text>
-        {currentAccountName && (
+        {(subtitle ?? currentAccountName) && (
           <Text style={styles.subtitle} numberOfLines={1}>
-            {currentAccountName}
+            {subtitle ?? currentAccountName}
           </Text>
         )}
       </View>
@@ -71,7 +78,7 @@ const getStyles = (width: number, height: number) =>
     title: {
       fontSize: RFPercentage(3),
       fontWeight: "bold",
-      color: "#0B1F44",
+      color: colors.primary,
     },
     subtitle: {
       fontSize: RFPercentage(1.8),

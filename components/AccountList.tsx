@@ -1,14 +1,7 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Modal,
-  ScrollView,
-  useWindowDimensions,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import React, { useEffect, useState } from "react";
 import { RFPercentage } from "react-native-responsive-fontsize";
+import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../src/context/AuthContext";
 import { getAccountList } from "../src/utils/pimsApi";
 import {
@@ -16,19 +9,27 @@ import {
   AccountIndividual,
   Props,
 } from "../src/navigation/types";
+import { colors } from "../src/theme/colors";
+import Card from "./Card";
+import DetailModal, { DetailRow } from "./DetailModal";
 
+type Selected = { title: string; subtitle?: string; rows: DetailRow[] } | null;
+
+const getInitials = (name: string) => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : "";
+  return `${parts[0][0]}${last}`.toUpperCase();
+};
+
+// People and entities in the family group, each opening a details popup
 export default function AccountList({ refreshTrigger }: Props) {
   const { userData } = useAuth();
-  const { width, height } = useWindowDimensions();
   const [entities, setEntities] = useState<AccountEntity[]>([]);
   const [individuals, setIndividuals] = useState<AccountIndividual[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedIndividual, setSelectedIndividual] = useState<any>(null);
-  const [selectedEntity, setSelectedEntity] = useState<any>(null);
-  const [individualModalVisible, setIndividualModalVisible] = useState(false);
-  const [entityModalVisible, setEntityModalVisible] = useState(false);
-  const styles = getStyles(width, height);
+  const [selected, setSelected] = useState<Selected>(null);
 
   useEffect(() => {
     const fetchAccounts = async () => {
@@ -38,6 +39,7 @@ export default function AccountList({ refreshTrigger }: Props) {
       }
 
       setLoading(true);
+      setError(null);
       try {
         const { entities, individuals } = await getAccountList(
           userData.authToken,
@@ -55,299 +57,202 @@ export default function AccountList({ refreshTrigger }: Props) {
     fetchAccounts();
   }, [userData?.authToken, userData?.accountId, refreshTrigger]);
 
-  const handleIndividualPress = (item: AccountIndividual) => {
-    setSelectedIndividual(item);
-    setIndividualModalVisible(true);
-  };
+  const openIndividual = (ind: AccountIndividual) =>
+    setSelected({
+      title: ind.accountName,
+      subtitle: ind.relationship,
+      rows: [
+        { label: "Email", value: ind.email },
+        { label: "DOB (age)", value: ind.dob },
+        { label: "Relationship", value: ind.relationship },
+      ],
+    });
 
-  const handleEntityPress = (item: AccountEntity) => {
-    setSelectedEntity(item);
-    setEntityModalVisible(true);
-  };
+  const openEntity = (ent: AccountEntity) =>
+    setSelected({
+      title: ent.accountName,
+      subtitle: ent.accountType,
+      rows: [
+        { label: "Entity type", value: ent.accountType },
+        { label: "ABN", value: ent.abn },
+        { label: "TFN", value: ent.tfn },
+        { label: "Active portfolio", value: ent.activePortfolio },
+      ],
+    });
 
-  const renderIndividualModal = () => (
-    <Modal
-      animationType="fade"
-      transparent={true}
-      visible={individualModalVisible}
-      onRequestClose={() => setIndividualModalVisible(false)}
+  const renderRow = (
+    key: string,
+    avatar: React.ReactNode,
+    name: string,
+    meta: string,
+    onPress: () => void,
+    isLast: boolean
+  ) => (
+    <TouchableOpacity
+      key={key}
+      style={[styles.row, isLast && styles.lastRow]}
+      onPress={onPress}
+      activeOpacity={0.6}
     >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          {selectedIndividual && (
-            <>
-              <Text style={styles.modalTitle}>
-                {selectedIndividual.accountName}
-              </Text>
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Email:</Text>
-                <Text style={styles.modalText}>{selectedIndividual.email}</Text>
-              </View>
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>DOB(Age):</Text>
-                <Text style={styles.modalText}>{selectedIndividual.dob}</Text>
-              </View>
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Relationship:</Text>
-                <Text style={styles.modalText}>
-                  {selectedIndividual.relationship}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setIndividualModalVisible(false)}
-              >
-                <Text style={styles.closeButtonText}>Close</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
+      {avatar}
+      <View style={styles.rowText}>
+        <Text style={styles.name} numberOfLines={1}>
+          {name}
+        </Text>
+        {!!meta && (
+          <Text style={styles.meta} numberOfLines={1}>
+            {meta}
+          </Text>
+        )}
       </View>
-    </Modal>
+      <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+    </TouchableOpacity>
   );
 
-  const renderEntityModal = () => (
-    <Modal
-      animationType="fade"
-      transparent={true}
-      visible={entityModalVisible}
-      onRequestClose={() => setEntityModalVisible(false)}
-    >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          {selectedEntity && (
-            <>
-              <Text style={styles.modalTitle}>
-                {selectedEntity.accountName}
-              </Text>
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Entity Type:</Text>
-                <Text style={styles.modalText}>
-                  {selectedEntity.accountType}
-                </Text>
-              </View>
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>ABN:</Text>
-                <Text style={styles.modalText}>{selectedEntity.abn}</Text>
-              </View>
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>TFN:</Text>
-                <Text style={styles.modalText}>{selectedEntity.tfn}</Text>
-              </View>
-              <View style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Active Portfolio:</Text>
-                <Text style={styles.modalText}>
-                  {selectedEntity.activePortfolio}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setEntityModalVisible(false)}
-              >
-                <Text style={styles.closeButtonText}>Close</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-      </View>
-    </Modal>
-  );
-
-  if (loading) {
-    return <Text style={styles.loader}>Loading...</Text>;
-  }
-
-  if (error) {
-    return <Text style={styles.errorText}>{error}</Text>;
-  }
-
-  if (!entities || entities.length === 0) {
-    return (
-      <Text style={styles.errorText}>No client account details available</Text>
-    );
-  }
-  if (!individuals || individuals.length === 0) {
-    return (
-      <Text style={styles.errorText}>No client account details available</Text>
-    );
-  }
+  const isEmpty = individuals.length === 0 && entities.length === 0;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.border}>
-        <Text style={styles.bodyText}>Account List</Text>
-        <View style={styles.tableContainer}>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.headerCell, { flex: 2 }]}>Individual</Text>
-            <Text style={[styles.headerCell, { flex: 1.5 }]}>DOB(Age)</Text>
-            <Text style={[styles.headerCell, { flex: 1 }]}>Relationship</Text>
-          </View>
-
-          {individuals.map((ind, index) => (
-            <View
-              key={ind.id}
-              style={[
-                styles.dataRow,
-                { backgroundColor: index % 2 === 0 ? "#eee" : "#fff" },
-              ]}
-            >
-              <TouchableOpacity
-                onPress={() => handleIndividualPress(ind)}
-                style={{ flex: 2 }}
-              >
-                <Text
-                  style={[styles.dataCell, styles.underlineText]}
-                  numberOfLines={1}
-                >
-                  {ind.accountName}
-                </Text>
-              </TouchableOpacity>
-              <Text style={[styles.dataCell, { flex: 1.5 }]}>{ind.dob}</Text>
-              <Text style={[styles.dataCell, { flex: 1 }]}>
-                {ind.relationship}
-              </Text>
-            </View>
-          ))}
-
-          <View style={[styles.tableHeader, { marginTop: height * 0.03 }]}>
-            <Text style={[styles.headerCell, { flex: 2.67 }]}>Entity</Text>
-            <Text style={[styles.headerCell, { flex: 1 }]}>ABN</Text>
-          </View>
-
-          {entities.map((ent, index) => (
-            <View
-              key={ent.id}
-              style={[
-                styles.dataRow,
-                { backgroundColor: index % 2 === 0 ? "#eee" : "#fff" },
-              ]}
-            >
-              <TouchableOpacity
-                onPress={() => handleEntityPress(ent)}
-                style={{ flex: 2.67 }}
-              >
-                <Text
-                  style={[styles.dataCell, styles.underlineText]}
-                  numberOfLines={1}
-                >
-                  {ent.accountName}
-                </Text>
-              </TouchableOpacity>
-              <Text style={[styles.dataCell, { flex: 1 }]}>{ent.abn}</Text>
-            </View>
-          ))}
-        </View>
+    <Card style={styles.card}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Account list</Text>
       </View>
-      {renderIndividualModal()}
-      {renderEntityModal()}
-    </View>
+
+      {loading ? (
+        <Text style={styles.muted}>Loading...</Text>
+      ) : error ? (
+        <Text style={styles.muted}>{error}</Text>
+      ) : isEmpty ? (
+        <Text style={styles.muted}>No client account details available</Text>
+      ) : (
+        <>
+          {individuals.length > 0 && (
+            <>
+              <Text style={styles.sectionLabel}>
+                Individuals ({individuals.length})
+              </Text>
+              {individuals.map((ind, idx) =>
+                renderRow(
+                  ind.id,
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>
+                      {getInitials(ind.accountName)}
+                    </Text>
+                  </View>,
+                  ind.accountName,
+                  [ind.relationship, ind.dob].filter(Boolean).join(" · "),
+                  () => openIndividual(ind),
+                  idx === individuals.length - 1
+                )
+              )}
+            </>
+          )}
+
+          {entities.length > 0 && (
+            <>
+              <Text style={styles.sectionLabel}>Entities ({entities.length})</Text>
+              {entities.map((ent, idx) =>
+                renderRow(
+                  ent.id,
+                  <View style={[styles.avatar, styles.entityAvatar]}>
+                    <Ionicons name="business" size={18} color={colors.primary} />
+                  </View>,
+                  ent.accountName,
+                  [ent.accountType, ent.abn ? `ABN ${ent.abn}` : ""]
+                    .filter(Boolean)
+                    .join(" · "),
+                  () => openEntity(ent),
+                  idx === entities.length - 1
+                )
+              )}
+            </>
+          )}
+        </>
+      )}
+
+      <DetailModal
+        visible={!!selected}
+        title={selected?.title ?? ""}
+        subtitle={selected?.subtitle}
+        rows={selected?.rows ?? []}
+        onClose={() => setSelected(null)}
+      />
+    </Card>
   );
 }
 
-const getStyles = (width: number, height: number) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      marginTop: height * 0.01,
-      borderRadius: 6,
-      backgroundColor: "#fff",
-    },
-    border: {
-      borderWidth: 1,
-      borderColor: "#1B77BE",
-      borderRadius: 6,
-      paddingHorizontal: width * 0.02,
-    },
-    bodyText: {
-      //fontWeight: "bold",
-      color: "#1B77BE",
-      marginBottom: height * 0.01,
-      fontSize: RFPercentage(2.6),
-    },
-    tableContainer: {
-      paddingBottom: height * 0.01,
-    },
-    tableHeader: {
-      flexDirection: "row",
-      backgroundColor: "#1B77BE",
-      paddingVertical: height * 0.01,
-      paddingHorizontal: width * 0.02,
-    },
-    headerCell: {
-      color: "white",
-      fontWeight: "bold",
-      fontSize: RFPercentage(2),
-    },
-    dataRow: {
-      flexDirection: "row",
-      paddingVertical: height * 0.01,
-      paddingHorizontal: width * 0.02,
-      borderWidth: 1,
-      borderColor: "#ccc",
-    },
-    dataCell: {
-      fontSize: RFPercentage(2),
-      color: "#333",
-    },
-    underlineText: {
-      textDecorationLine: "underline",
-      color: "#1B77BE",
-    },
-    errorText: {
-      color: "red",
-      fontSize: RFPercentage(2),
-      textAlign: "center",
-      marginTop: height * 0.3,
-    },
-    loader: {
-      fontWeight: "bold",
-      color: "#1B77BE",
-      fontSize: RFPercentage(2.6),
-      marginTop: height * 0.021,
-      marginLeft: height * 0.013,
-    },
-    modalContainer: {
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
-      backgroundColor: "rgba(0,0,0,0.5)",
-    },
-    modalContent: {
-      width: width * 0.8,
-      backgroundColor: "white",
-      borderRadius: 10,
-      padding: width * 0.05,
-    },
-    modalTitle: {
-      fontSize: RFPercentage(2.5),
-      fontWeight: "bold",
-      color: "#4A90E2",
-      marginBottom: height * 0.02,
-      textAlign: "center",
-    },
-    modalRow: {
-      flexDirection: "row",
-      marginBottom: height * 0.015,
-    },
-    modalLabel: {
-      fontWeight: "bold",
-      width: width * 0.3,
-      fontSize: RFPercentage(2),
-    },
-    modalText: {
-      flex: 1,
-      fontSize: RFPercentage(2),
-    },
-    closeButton: {
-      marginTop: height * 0.02,
-      backgroundColor: "#00205A",
-      padding: width * 0.03,
-      borderRadius: 10,
-      alignItems: "center",
-    },
-    closeButtonText: {
-      color: "white",
-      fontWeight: "bold",
-      fontSize: RFPercentage(2),
-    },
-  });
+const styles = StyleSheet.create({
+  card: {
+    paddingHorizontal: 0,
+    paddingVertical: 4,
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#E5E7EB",
+  },
+  title: {
+    fontSize: RFPercentage(2.2),
+    fontWeight: "bold",
+    color: colors.primary,
+  },
+  muted: {
+    textAlign: "center",
+    color: "#6B7280",
+    fontSize: RFPercentage(1.9),
+    paddingVertical: 20,
+  },
+  sectionLabel: {
+    fontSize: RFPercentage(1.6),
+    fontWeight: "bold",
+    color: "#6B7280",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 4,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#F3F4F6",
+  },
+  lastRow: {
+    borderBottomWidth: 0,
+  },
+  avatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  entityAvatar: {
+    borderRadius: 10,
+    backgroundColor: colors.primarySoft,
+  },
+  avatarText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: RFPercentage(1.7),
+  },
+  rowText: {
+    flex: 1,
+    marginRight: 8,
+  },
+  name: {
+    fontSize: RFPercentage(2),
+    fontWeight: "bold",
+    color: colors.primary,
+  },
+  meta: {
+    fontSize: RFPercentage(1.6),
+    color: "#6B7280",
+    marginTop: 2,
+  },
+});

@@ -18,6 +18,7 @@ import { RootStackParamList } from "../navigation/types";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { RFPercentage } from "react-native-responsive-fontsize";
 import { useSession } from "../../hooks/useSession";
+import { colors } from "../theme/colors";
 
 export default function LoginScreen() {
   const { startSession } = useSession();
@@ -262,7 +263,7 @@ const getStyles = (width: number, height: number) =>
       marginRight: width * 0.01,
     },
     loginButton: {
-      backgroundColor: "#00205A",
+      backgroundColor: colors.primary,
       padding: 15,
       borderRadius: 10,
       width: "100%",
@@ -275,7 +276,7 @@ const getStyles = (width: number, height: number) =>
       fontWeight: "bold",
     },
     forgotPassword: {
-      color: "#1B77BE",
+      color: colors.primary,
       fontSize: RFPercentage(2),
       textDecorationLine: "underline",
     },
@@ -294,7 +295,7 @@ const getStyles = (width: number, height: number) =>
     modalTitle: {
       fontSize: RFPercentage(2.5),
       fontWeight: "bold",
-      color: "#1B77BE",
+      color: colors.primary,
       marginBottom: height * 0.02,
       textAlign: "center",
     },
@@ -334,7 +335,7 @@ const getStyles = (width: number, height: number) =>
       alignItems: "center",
     },
     submitButton: {
-      backgroundColor: "#00205A",
+      backgroundColor: colors.primary,
     },
     closeButton: {
       backgroundColor: "#ccc",

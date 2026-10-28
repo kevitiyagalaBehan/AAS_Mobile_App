@@ -24,6 +24,7 @@ import {
   PIN_LENGTH,
 } from "../utils/pinStorage";
 import { RootStackParamList } from "../navigation/types";
+import { colors } from "../theme/colors";
 
 type Step = "create" | "confirm";
 
@@ -183,7 +184,7 @@ const getStyles = (width: number, height: number) =>
     title: {
       fontSize: RFPercentage(2.8),
       fontWeight: "bold",
-      color: "#00205A",
+      color: colors.primary,
       marginBottom: height * 0.01,
       textAlign: "center",
     },
@@ -205,7 +206,7 @@ const getStyles = (width: number, height: number) =>
       padding: 10,
     },
     secondaryText: {
-      color: "#1B77BE",
+      color: colors.primary,
       fontSize: RFPercentage(2),
       textDecorationLine: "underline",
     },

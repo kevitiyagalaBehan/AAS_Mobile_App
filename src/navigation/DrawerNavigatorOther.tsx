@@ -4,7 +4,7 @@ import BottomTabOther from "./BottomTabNavigatorOther";
 import CustomDrawerContent from "./CustomDrawerContent";
 import DetailsScreen from "../screens/DetailsScreen";
 import CashTransactionsScreen from "../screens/CashTransactionsScreen";
-import PortfolioScreen from "../screens/PortfolioScreen";
+import DocumentScreen from "../screens/DocumentScreen";
 import { DrawerParamListOther, DrawerMenuItem } from "./types";
 import { useAuth } from "../context/AuthContext";
 import { useAutoLogout } from "../../hooks/useAutoLogout";
@@ -15,7 +15,7 @@ const Drawer = createDrawerNavigator<DrawerParamListOther>();
 const MENU_ITEMS: DrawerMenuItem[] = [
   { label: "Details", icon: "list-circle", screen: "Details" },
   { label: "Bank", icon: "card", screen: "Transactions" },
-  { label: "Portfolio", icon: "bag-check", screen: "Portfolio" },
+  { label: "Documents", icon: "documents", screen: "Document" },
 ];
 
 export default function DrawerNavigatorOther() {
@@ -53,7 +53,7 @@ export default function DrawerNavigatorOther() {
       />
       <Drawer.Screen name="Details" component={DetailsScreen} />
       <Drawer.Screen name="Transactions" component={CashTransactionsScreen} />
-      <Drawer.Screen name="Portfolio" component={PortfolioScreen} />
+      <Drawer.Screen name="Document" component={DocumentScreen} />
     </Drawer.Navigator>
   );
 }

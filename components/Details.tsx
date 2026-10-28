@@ -17,6 +17,7 @@ import {
   RelationshipResponse,
 } from "../src/navigation/types";
 import { RFPercentage } from "react-native-responsive-fontsize";
+import { colors } from "../src/theme/colors";
 
 export default function Details({ refreshTrigger }: Props) {
   const { userData } = useAuth();
@@ -222,15 +223,16 @@ const getStyles = (width: number, height: number) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      marginVertical: height * 0.02,
-      borderRadius: 6,
+      marginVertical: 12,
+      borderRadius: 16,
       backgroundColor: "#fff",
     },
     border: {
       borderWidth: 1,
-      borderColor: "#1B77BE",
-      borderRadius: 6,
-      padding: width * 0.02,
+      borderColor: "#E5E7EB",
+      borderRadius: 16,
+      padding: 16,
+      backgroundColor: "#fff",
     },
     row: {
       flexDirection: "row",
@@ -239,7 +241,7 @@ const getStyles = (width: number, height: number) =>
     },
     labelCell: {
       flex: 1,
-      backgroundColor: "#1B77BE",
+      backgroundColor: colors.primary,
       justifyContent: "center",
       padding: 10,
     },
@@ -268,12 +270,12 @@ const getStyles = (width: number, height: number) =>
       alignItems: "center",
     },
     activeTab: {
-      backgroundColor: "#1B77BE",
+      backgroundColor: colors.primary,
     },
     tabText: {
       fontSize: RFPercentage(2),
       fontWeight: "bold",
-      color: "#1B77BE",
+      color: colors.primary,
     },
     activeTabText: {
       color: "#fff",
@@ -287,7 +289,7 @@ const getStyles = (width: number, height: number) =>
     },
     loader: {
       fontWeight: "bold",
-      color: "#1B77BE",
+      color: colors.primary,
       fontSize: RFPercentage(2.6),
       marginTop: height * 0.021,
       marginLeft: height * 0.013,
