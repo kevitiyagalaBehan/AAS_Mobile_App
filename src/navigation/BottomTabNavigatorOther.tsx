@@ -66,9 +66,9 @@ export default function BottomTabOther() {
           component={SuperScreen}
           options={{
             headerShown: false,
-            tabBarLabel: "Super",
+            tabBarLabel: "Members",
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="wallet" size={size} color={color} />
+              <Ionicons name="people" size={size} color={color} />
             ),
           }}
         />

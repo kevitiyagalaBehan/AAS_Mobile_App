@@ -41,6 +41,8 @@ export default {
     plugins: [
       "expo-asset",
       "expo-secure-store",
+      "@config-plugins/react-native-blob-util",
+      "@config-plugins/react-native-pdf",
       [
         "expo-splash-screen",
         {
@@ -63,6 +65,13 @@ export default {
           android: {
             enableMinifyInReleaseBuilds: true,
             enableShrinkResourcesInReleaseBuilds: true,
+            // PDF viewer: pdfium is called through JNI, which R8 can't see
+            extraProguardRules: [
+              "-keep class io.legere.pdfiumandroid.** { *; }",
+              "-keep class com.github.barteksc.pdfviewer.** { *; }",
+              "-keep class org.wonday.pdf.** { *; }",
+              "-keep class com.ReactNativeBlobUtil.** { *; }",
+            ].join("\n"),
           },
         },
       ],

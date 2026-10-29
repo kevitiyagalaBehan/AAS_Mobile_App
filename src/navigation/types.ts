@@ -29,6 +29,8 @@ export type RootStackParamList = {
   PinLogin: undefined;
   // "afterLogin" continues into the app when done; "settings" goes back to the drawer.
   PinSetup: { mode: "afterLogin" | "settings" };
+  // Either a Documents server path (exchanged via getDocumentViewUrl) or a direct PDF url
+  PdfViewer: { title: string } & ({ path: string } | { url: string });
   Other: { screen?: string; params?: object };
   Family: { screen?: string; params?: object };
 };

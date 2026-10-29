@@ -15,7 +15,7 @@ import { colors } from "../src/theme/colors";
 type ScreenTitleProps = {
   title: string;
   showBack?: boolean;
-  // Replaces the default account-name subtitle
+  // Extra line shown under the account name
   subtitle?: React.ReactNode;
 };
 
@@ -50,9 +50,14 @@ export default function ScreenTitle({
         <Text style={styles.title} accessibilityRole="header">
           {title}
         </Text>
-        {(subtitle ?? currentAccountName) && (
+        {!!currentAccountName && (
           <Text style={styles.subtitle} numberOfLines={1}>
-            {subtitle ?? currentAccountName}
+            {currentAccountName}
+          </Text>
+        )}
+        {!!subtitle && (
+          <Text style={styles.subtitle} numberOfLines={1}>
+            {subtitle}
           </Text>
         )}
       </View>

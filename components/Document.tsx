@@ -1,16 +1,21 @@
+import React, { ComponentProps, useEffect, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Modal,
-  useWindowDimensions,
+  ScrollView,
+  ActivityIndicator,
   Linking,
-  FlatList,
   Alert,
+  useWindowDimensions,
 } from "react-native";
-import { useState, useEffect, ComponentProps } from "react";
 import { RFPercentage } from "react-native-responsive-fontsize";
+import { useNavigation } from "@react-navigation/native";
+import { StackNavigationProp } from "@react-navigation/stack";
+import { Ionicons } from "@expo/vector-icons";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { Base64 } from "js-base64";
 import { useAuth } from "../src/context/AuthContext";
 import {
   getAASDocuments,
@@ -18,659 +23,537 @@ import {
   getDocumentViewUrl,
   getAASDocumentRoot,
 } from "../src/utils/pimsApi";
-import { Documents, Folders } from "../src/navigation/types";
-import { Base64 } from "js-base64";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { useRefreshTrigger } from "../hooks/useRefreshTrigger";
+import { Documents, Folders, RootStackParamList } from "../src/navigation/types";
+import { formatShortDate } from "../src/utils/format";
 import { colors } from "../src/theme/colors";
+import Card from "./Card";
+import DetailModal from "./DetailModal";
 
 type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
+type Tab = "aasFolders" | "aasDocuments";
 
-export default function Document() {
+const TABS: { key: Tab; label: string }[] = [
+  { key: "aasFolders", label: "AAS Folders" },
+  { key: "aasDocuments", label: "AAS Documents" },
+];
+
+type FileIcon = { name: MaterialIconName; color: string; background: string };
+
+const FOLDER_ICON: FileIcon = { name: "folder", color: "#D97706", background: "#FEF3C7" };
+
+// Folders give "pdf", documents give ".pdf"
+const getFileIcon = (extension?: string | null): FileIcon => {
+  switch (extension?.replace(".", "").toLowerCase()) {
+    case "pdf":
+      return { name: "picture-as-pdf", color: "#D32F2F", background: "#FEE2E2" };
+    case "doc":
+    case "docx":
+      return { name: "description", color: "#2A5699", background: "#DBEAFE" };
+    case "xls":
+    case "xlsx":
+      return { name: "grid-on", color: "#1B8836", background: "#DCFCE7" };
+    default:
+      return { name: "insert-drive-file", color: "#6B7280", background: "#F3F4F6" };
+  }
+};
+
+export default function Document({ refreshTrigger }: { refreshTrigger: number }) {
   const { userData } = useAuth();
-  const { width, height } = useWindowDimensions();
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const { height } = useWindowDimensions();
+  const styles = getStyles(height);
+
+  const [selectedTab, setSelectedTab] = useState<Tab>("aasFolders");
   const [rootPath, setRootPath] = useState<string>("");
-  const [currentPath, setCurrentPath] = useState<string>("");
-  const [folders, setFolders] = useState<Folders[]>([]);
+  const [rootError, setRootError] = useState<string | null>(null);
   const [folderStack, setFolderStack] = useState<string[]>([]);
-  const [documents, setDocuments] = useState<Documents[] | null>(null);
-  const [selectedTab, setSelectedTab] = useState<"aasFolders" | "aasDocuments">(
-    "aasFolders"
-  );
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [folders, setFolders] = useState<Folders[]>([]);
+  const [foldersLoading, setFoldersLoading] = useState(true);
+  const [foldersError, setFoldersError] = useState<string | null>(null);
+  const [documents, setDocuments] = useState<Documents[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(true);
+  const [documentsError, setDocumentsError] = useState<string | null>(null);
+  const [openingKey, setOpeningKey] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<Documents | null>(null);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [isScrollable, setIsScrollable] = useState(false);
 
-  const updateFolderAndDocuments = async (path: string) => {
-    setCurrentPath(path);
-    fetchFolders(path);
-  };
+  const currentPath = rootPath ? [rootPath, ...folderStack].join("/") : "";
 
-  const fetchFolders = async (path: string) => {
-    if (!userData?.authToken) return;
-
-    setLoading(true);
-    try {
-      const folderData = await getFolderPath(path, userData.authToken);
-      setFolders(folderData || []);
-    } catch (err) {
-      setError("Failed to load folders");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchDocuments = async () => {
-    if (!userData?.authToken || !currentPath) {
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const data = await getAASDocuments(currentPath, userData.authToken);
-      setDocuments(data?.slice(0, 20) || []);
-    } catch (err) {
-      setError("Failed to load documents");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const { refreshTrigger, refreshing, onRefresh } =
-    useRefreshTrigger(fetchDocuments);
-
+  // A different account has a different document root
   useEffect(() => {
-    const initFolders = async () => {
-      if (!userData?.authToken || !userData?.accountId) return;
-      const root = await getAASDocumentRoot(
-        userData.accountId,
-        userData.authToken
-      );
-      if (root) {
-        setRootPath(root);
-        setFolderStack([]);
-        updateFolderAndDocuments(root);
+    setRootPath("");
+    setFolderStack([]);
+  }, [userData?.accountId]);
+
+  // Pull-to-refresh retries this only while the root hasn't loaded
+  useEffect(() => {
+    if (rootPath || !userData?.authToken || !userData?.accountId) return;
+    let cancelled = false;
+
+    const loadRoot = async () => {
+      setRootError(null);
+      try {
+        const root = await getAASDocumentRoot(userData.accountId, userData.authToken);
+        if (cancelled) return;
+        if (root) {
+          setRootPath(root);
+        } else {
+          setRootError("No documents are available for this account.");
+        }
+      } catch {
+        if (!cancelled) setRootError("Failed to load documents. Pull down to try again.");
       }
     };
 
-    if (userData?.authToken && userData?.accountId) {
-      initFolders();
-    }
-  }, [userData]);
+    loadRoot();
+    return () => {
+      cancelled = true;
+    };
+  }, [userData?.authToken, userData?.accountId, refreshTrigger, rootPath]);
 
   useEffect(() => {
-    if (currentPath) {
-      fetchDocuments();
-    }
+    if (!currentPath || !userData?.authToken) return;
+    let cancelled = false;
+
+    const loadFolders = async () => {
+      setFoldersLoading(true);
+      setFoldersError(null);
+      try {
+        const data = await getFolderPath(currentPath, userData.authToken);
+        if (!cancelled) setFolders(data || []);
+      } catch {
+        if (!cancelled) setFoldersError("Failed to load folders");
+      } finally {
+        if (!cancelled) setFoldersLoading(false);
+      }
+    };
+
+    loadFolders();
+    return () => {
+      cancelled = true;
+    };
   }, [currentPath, userData?.authToken, refreshTrigger]);
 
-  const styles = getStyles(width, height);
+  useEffect(() => {
+    if (!currentPath || !userData?.authToken) return;
+    let cancelled = false;
 
-  if (loading) {
-    return <Text style={styles.loader}>Loading...</Text>;
-  }
+    const loadDocuments = async () => {
+      setDocumentsLoading(true);
+      setDocumentsError(null);
+      try {
+        const data = await getAASDocuments(currentPath, userData.authToken);
+        if (!cancelled) setDocuments(data || []);
+      } catch {
+        if (!cancelled) setDocumentsError("Failed to load documents");
+      } finally {
+        if (!cancelled) setDocumentsLoading(false);
+      }
+    };
 
-  if (loading) {
-    return <Text style={styles.loader}>Loading...</Text>;
-  }
+    loadDocuments();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPath, userData?.authToken, refreshTrigger]);
 
-  const handleCodePress = (item: Documents) => {
-    setSelectedItem(item);
-    setModalVisible(true);
-  };
-
-  const handleFolderClick = async (item: Folders) => {
+  const openDocument = async (
+    filePath: string,
+    key: string,
+    name: string,
+    extension?: string | null
+  ) => {
     if (!userData?.authToken) {
       Alert.alert("Error", "User is not authenticated.");
       return;
     }
+    if (openingKey) return;
 
-    if (item.type === "FOLDER") {
-      const newPath = `${currentPath}/${item.name}`;
-      setFolderStack((prev) => [...prev, item.name]);
-      updateFolderAndDocuments(newPath);
-    } else if (item.type === "FILE") {
-      try {
-        const filePath = `${currentPath}/${item.name}`;
-        const encodedPath = Base64.encode(filePath);
-        const docUrl = await getDocumentViewUrl(
-          encodedPath,
-          userData.authToken
-        );
+    // PDFs open in the in-app viewer; other types still go to the browser
+    if (extension?.replace(".", "").toLowerCase() === "pdf") {
+      navigation.navigate("PdfViewer", { path: filePath, title: name });
+      return;
+    }
 
-        if (docUrl) {
-          Linking.openURL(docUrl);
-        } else {
-          Alert.alert("Error", "Unable to retrieve document URL.");
-        }
-      } catch (error) {
-        Alert.alert("Error", "Failed to open the document.");
+    setOpeningKey(key);
+    try {
+      const docUrl = await getDocumentViewUrl(
+        Base64.encode(filePath),
+        userData.authToken
+      );
+      if (docUrl) {
+        await Linking.openURL(docUrl);
+      } else {
+        Alert.alert("Error", "Unable to retrieve document URL.");
       }
+    } catch {
+      Alert.alert("Error", "Failed to open the document.");
+    } finally {
+      setOpeningKey(null);
     }
   };
 
-  const handleBreadcrumbClick = async (index: number) => {
-    const newStack = folderStack.slice(0, index + 1);
-    const newPath = `${rootPath}/${newStack.join("/")}`;
-    setFolderStack(newStack);
-    updateFolderAndDocuments(newPath);
+  const handleFolderPress = (item: Folders) => {
+    if (item.type === "FOLDER") {
+      setFolderStack((prev) => [...prev, item.name]);
+    } else if (item.type === "FILE") {
+      openDocument(
+        `${currentPath}/${item.name}`,
+        `folder-${item.name}`,
+        item.name,
+        item.fileType
+      );
+    }
   };
 
-  const renderBreadcrumbs = () => (
-    <View
-      style={{
-        flexDirection: "row",
-        flexWrap: "wrap",
-        marginTop: height * 0.01,
-      }}
-    >
-      <TouchableOpacity
-        onPress={() => {
-          setFolderStack([]);
-          updateFolderAndDocuments(rootPath);
-        }}
-      >
-        <Text style={{ color: colors.primary, fontSize: RFPercentage(2) }}>
-          Home
-        </Text>
-      </TouchableOpacity>
-      {folderStack.map((folder, idx) => (
-        <Text key={idx}>
-          {" > "}
-          <Text
-            style={{
-              color: colors.primary,
-              textDecorationLine: "underline",
-              fontSize: RFPercentage(2),
-            }}
-            onPress={() => handleBreadcrumbClick(idx)}
-          >
-            {folder}
-          </Text>
-        </Text>
-      ))}
+  const renderIcon = (icon: FileIcon) => (
+    <View style={[styles.iconBox, { backgroundColor: icon.background }]}>
+      <MaterialIcons name={icon.name} size={20} color={icon.color} />
     </View>
   );
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.border}>
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              selectedTab === "aasFolders" && styles.activeTab,
-            ]}
-            onPress={() => setSelectedTab("aasFolders")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                selectedTab === "aasFolders" && styles.activeTabText,
-              ]}
-            >
-              AAS Folders
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              selectedTab === "aasDocuments" && styles.activeTab,
-            ]}
-            onPress={() => setSelectedTab("aasDocuments")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                selectedTab === "aasDocuments" && styles.activeTabText,
-              ]}
-            >
-              AAS Documents
-            </Text>
-          </TouchableOpacity>
+  const renderTrailing = (key: string, chevron = true) =>
+    openingKey === key ? (
+      <ActivityIndicator size="small" color={colors.primary} />
+    ) : chevron ? (
+      <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+    ) : null;
+
+  const renderState = (
+    loading: boolean,
+    error: string | null,
+    isEmpty: boolean,
+    emptyText: string
+  ) => {
+    if (loading) {
+      return <ActivityIndicator style={styles.spinner} size="large" color={colors.primary} />;
+    }
+    if (error) {
+      return (
+        <Card>
+          <Text style={styles.stateText}>{error}</Text>
+        </Card>
+      );
+    }
+    if (isEmpty) {
+      return (
+        <Card>
+          <Text style={styles.stateText}>{emptyText}</Text>
+        </Card>
+      );
+    }
+    return null;
+  };
+
+  const renderBreadcrumbs = () => (
+    <View style={styles.breadcrumbRow}>
+      {folderStack.length > 0 && (
+        <TouchableOpacity
+          style={styles.upButton}
+          onPress={() => setFolderStack((prev) => prev.slice(0, -1))}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Up one folder"
+        >
+          <Ionicons name="chevron-back" size={18} color={colors.primary} />
+        </TouchableOpacity>
+      )}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View style={styles.breadcrumbs}>
+          {["Home", ...folderStack].map((name, idx) => {
+            const isCurrent = idx === folderStack.length;
+            return (
+              <View key={`${idx}-${name}`} style={styles.crumb}>
+                {idx > 0 && (
+                  <Ionicons name="chevron-forward" size={14} color="#9CA3AF" />
+                )}
+                <TouchableOpacity
+                  disabled={isCurrent}
+                  onPress={() => setFolderStack((prev) => prev.slice(0, idx))}
+                  hitSlop={6}
+                >
+                  <Text style={[styles.crumbText, isCurrent && styles.crumbCurrent]}>
+                    {name}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })}
         </View>
-        {selectedTab === "aasFolders" && (
-          <View>
-            {renderBreadcrumbs()}
-            <View>
-              <View style={styles.tableHeader}>
-                <Text style={[styles.headerCell, { flex: 1 }]}>Name</Text>
-                <Text
-                  style={[styles.headerCell, { flex: 1, textAlign: "center" }]}
-                >
-                  Modified Date
-                </Text>
-              </View>
-              <FlatList
-                data={folders || []}
-                keyExtractor={(item, index) => `${item.name}-${index}`}
-                renderItem={({ item, index }) => {
-                  let iconName: MaterialIconName = "folder";
-                  let iconColor = "#FFD700";
+      </ScrollView>
+    </View>
+  );
 
-                  if (item.type !== "FOLDER") {
-                    switch (item.fileType?.toLowerCase()) {
-                      case "pdf":
-                        iconName = "picture-as-pdf";
-                        iconColor = "#D32F2F";
-                        break;
-                      case "doc":
-                      case "docx":
-                        iconName = "description";
-                        iconColor = "#2A5699";
-                        break;
-                      case "xls":
-                      case "xlsx":
-                        iconName = "grid-on";
-                        iconColor = "#1B8836";
-                        break;
-                      default:
-                        iconName = "insert-drive-file";
-                        iconColor = "#757575";
-                        break;
-                    }
-                  }
-
-                  return (
-                    <TouchableOpacity
-                      style={[
-                        styles.dataRow,
-                        { backgroundColor: index % 2 === 0 ? "#eee" : "#fff" },
-                      ]}
-                      onPress={() => handleFolderClick(item)}
-                    >
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          flex: 1,
-                        }}
-                      >
-                        <MaterialIcons
-                          name={iconName}
-                          size={20}
-                          color={iconColor}
-                          style={{ marginRight: width * 0.02 }}
-                        />
-                        <Text style={[styles.dataCell, styles.leftAlign]}>
-                          {item.name}
-                        </Text>
-                      </View>
-
-                      <Text
-                        style={[
-                          styles.dataCell,
-                          { flex: 1, textAlign: "center" },
-                        ]}
-                      >
-                        {item.lastModifiedDate
-                          ? new Date(item.lastModifiedDate).toLocaleDateString(
-                              "en-AU",
-                              {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric",
-                              }
-                            )
-                          : ""}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                }}
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                ListEmptyComponent={() => (
-                  <Text style={styles.noData}>No data</Text>
-                )}
-                showsVerticalScrollIndicator={false}
-                onContentSizeChange={(_, contentHeight) => {
-                  setIsScrollable(contentHeight > height);
-                }}
-                contentContainerStyle={{
-                  flexGrow: 1,
-                  paddingBottom: isScrollable ? height * 0.8 : 0,
-                }}
-              />
-            </View>
-          </View>
-        )}
-
-        {selectedTab === "aasDocuments" && (
-          <View>
-            <View>
-              <View style={styles.tableHeader}>
-                <Text style={[styles.headerCell, { flex: 3.5 }]}>Name</Text>
-                <Text
-                  style={[styles.headerCell, { flex: 1, textAlign: "center" }]}
-                >
-                  Action
-                </Text>
-              </View>
-
-              <FlatList
-                data={documents}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item, index }) => {
-                  let iconName: MaterialIconName = "insert-drive-file";
-                  let iconColor = "#757575";
-
-                  const ext = item.extension?.toLowerCase();
-                  if (ext === ".pdf") {
-                    iconName = "picture-as-pdf";
-                    iconColor = "#D32F2F";
-                  } else if (ext === ".doc" || ext === ".docx") {
-                    iconName = "description";
-                    iconColor = "#2A5699";
-                  } else if (ext === ".xls" || ext === ".xlsx") {
-                    iconName = "grid-on";
-                    iconColor = "#1B8836";
-                  }
-
-                  return (
-                    <View
-                      style={[
-                        styles.dataRow,
-                        { backgroundColor: index % 2 === 0 ? "#eee" : "#fff" },
-                      ]}
-                    >
-                      <TouchableOpacity
-                        onPress={() => handleCodePress(item)}
-                        style={{ flex: 3.5 }}
-                      >
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            justifyContent: "flex-start",
-                            flex: 1,
-                          }}
-                        >
-                          <MaterialIcons
-                            name={iconName}
-                            size={20}
-                            color={iconColor}
-                            style={{ marginRight: width * 0.02 }}
-                          />
-                          <Text
-                            style={[
-                              styles.dataCell,
-                              styles.leftAlign,
-                              styles.underlineText,
-                            ]}
-                          >
-                            {item.name}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                      <View
-                        style={{
-                          flex: 1,
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <TouchableOpacity
-                          style={styles.button}
-                          onPress={async () => {
-                            try {
-                              if (!userData?.authToken) {
-                                Alert.alert(
-                                  "Error",
-                                  "User is not authenticated."
-                                );
-                                return;
-                              }
-
-                              const encodedPath = Base64.encode(item.fullPath);
-                              const docUrl = await getDocumentViewUrl(
-                                encodedPath,
-                                userData.authToken
-                              );
-
-                              if (docUrl) {
-                                Linking.openURL(docUrl);
-                              } else {
-                                Alert.alert(
-                                  "Error",
-                                  "Unable to retrieve document URL."
-                                );
-                              }
-                            } catch (error) {
-                              Alert.alert(
-                                "Error",
-                                "Failed to open the document."
-                              );
-                            }
-                          }}
-                        >
-                          <Text style={styles.buttonText}>Open</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  );
-                }}
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                onContentSizeChange={(_, contentHeight) => {
-                  setIsScrollable(contentHeight > height);
-                }}
-                contentContainerStyle={{
-                  flexGrow: 1,
-                  paddingBottom: isScrollable ? height * 0.6 : 0,
-                }}
-                showsVerticalScrollIndicator={false}
-                ListEmptyComponent={() => (
-                  <Text style={styles.noData}>No data</Text>
-                )}
-              />
-            </View>
-
-            <Modal
-              animationType="fade"
-              transparent={true}
-              visible={modalVisible}
-              onRequestClose={() => setModalVisible(false)}
+  const renderFolders = () =>
+    renderState(
+      foldersLoading,
+      foldersError,
+      folders.length === 0,
+      "This folder is empty."
+    ) ?? (
+      <Card style={styles.listCard}>
+        {folders.map((item, idx) => {
+          const isFolder = item.type === "FOLDER";
+          const key = `folder-${item.name}`;
+          return (
+            <TouchableOpacity
+              key={`${item.type}-${item.name}-${idx}`}
+              style={[styles.row, idx > 0 && styles.rowDivider]}
+              onPress={() => handleFolderPress(item)}
+              activeOpacity={0.6}
             >
-              <View style={styles.modalContainer}>
-                <View style={styles.modalContent}>
-                  {selectedItem && (
-                    <>
-                      <Text style={styles.modalTitle}>{selectedItem.name}</Text>
-                      <View style={styles.modalRow}>
-                        <Text style={styles.modalLabel}>Modified Date:</Text>
-                        <Text style={styles.modalText}>
-                          {new Date(
-                            selectedItem.lastModified
-                          ).toLocaleDateString("en-AU", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          })}
-                        </Text>
-                      </View>
-                      <View style={styles.modalRow}>
-                        <Text style={styles.modalLabel}>Folder:</Text>
-                        <Text style={styles.modalText}>
-                          {selectedItem.folder}
-                        </Text>
-                      </View>
-                      <View style={styles.modalRow}>
-                        <Text style={styles.modalLabel}>Size:</Text>
-                        <Text style={styles.modalText}>
-                          {selectedItem.sizeText}
-                        </Text>
-                      </View>
-                      <TouchableOpacity
-                        style={styles.closeButton}
-                        onPress={() => setModalVisible(false)}
-                      >
-                        <Text style={styles.closeButtonText}>Close</Text>
-                      </TouchableOpacity>
-                    </>
-                  )}
-                </View>
+              {renderIcon(isFolder ? FOLDER_ICON : getFileIcon(item.fileType))}
+              <View style={styles.rowMain}>
+                <Text style={styles.name} numberOfLines={2}>
+                  {item.name}
+                </Text>
+                {!!item.lastModifiedDate && (
+                  <Text style={styles.meta}>
+                    {formatShortDate(item.lastModifiedDate)}
+                  </Text>
+                )}
               </View>
-            </Modal>
-          </View>
-        )}
+              {renderTrailing(key)}
+            </TouchableOpacity>
+          );
+        })}
+      </Card>
+    );
+
+  const renderDocuments = () =>
+    renderState(
+      documentsLoading,
+      documentsError,
+      documents.length === 0,
+      "No documents yet."
+    ) ?? (
+      <Card style={styles.listCard}>
+        {documents.map((item, idx) => {
+          const key = `doc-${item.id}`;
+          return (
+            <View key={item.id} style={[styles.row, idx > 0 && styles.rowDivider]}>
+              <TouchableOpacity
+                style={styles.rowPressable}
+                onPress={() =>
+                  openDocument(item.fullPath, key, item.name, item.extension)
+                }
+                activeOpacity={0.6}
+              >
+                {renderIcon(getFileIcon(item.extension))}
+                <View style={styles.rowMain}>
+                  <Text style={styles.name} numberOfLines={2}>
+                    {item.name}
+                  </Text>
+                  <Text style={styles.meta} numberOfLines={1}>
+                    {[
+                      item.lastModified && formatShortDate(item.lastModified),
+                      item.sizeText,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </Text>
+                </View>
+                {renderTrailing(key, false)}
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setSelectedItem(item)}
+                hitSlop={10}
+                style={styles.infoButton}
+                accessibilityRole="button"
+                accessibilityLabel={`Details for ${item.name}`}
+              >
+                <Ionicons name="information-circle-outline" size={22} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+          );
+        })}
+      </Card>
+    );
+
+  return (
+    <View>
+      <View style={styles.segmentedControl}>
+        {TABS.map((tab) => {
+          const selected = selectedTab === tab.key;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.segment, selected && styles.segmentActive]}
+              onPress={() => setSelectedTab(tab.key)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected }}
+            >
+              <Text style={[styles.segmentText, selected && styles.segmentTextActive]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
+
+      {rootError ? (
+        <Card>
+          <Text style={styles.stateText}>{rootError}</Text>
+        </Card>
+      ) : !rootPath ? (
+        <ActivityIndicator style={styles.spinner} size="large" color={colors.primary} />
+      ) : selectedTab === "aasFolders" ? (
+        <>
+          {renderBreadcrumbs()}
+          {renderFolders()}
+        </>
+      ) : (
+        <>
+          {!documentsLoading && !documentsError && documents.length > 0 && (
+            <Text style={styles.countText}>
+              {documents.length} {documents.length === 1 ? "document" : "documents"}
+            </Text>
+          )}
+          {renderDocuments()}
+        </>
+      )}
+
+      <DetailModal
+        visible={!!selectedItem}
+        title={selectedItem?.name ?? ""}
+        rows={[
+          {
+            label: "Modified",
+            value: selectedItem?.lastModified
+              ? formatShortDate(selectedItem.lastModified)
+              : null,
+          },
+          { label: "Folder", value: selectedItem?.folder },
+          { label: "Size", value: selectedItem?.sizeText },
+        ]}
+        onClose={() => setSelectedItem(null)}
+      />
     </View>
   );
 }
 
-const getStyles = (width: number, height: number) =>
+const getStyles = (height: number) =>
   StyleSheet.create({
-    container: {
-      marginTop: 12,
-      backgroundColor: "#fff",
-      borderRadius: 16,
+    segmentedControl: {
+      flexDirection: "row",
+      backgroundColor: "#E2E6EE",
+      borderRadius: 12,
+      padding: 4,
     },
-    border: {
+    segment: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 9,
+      alignItems: "center",
+    },
+    segmentActive: {
+      backgroundColor: "#fff",
+      shadowColor: "#000",
+      shadowOpacity: 0.08,
+      shadowRadius: 3,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: 2,
+    },
+    segmentText: {
+      fontSize: RFPercentage(1.9),
+      color: "#4B5563",
+      fontWeight: "600",
+    },
+    segmentTextActive: {
+      color: colors.primary,
+      fontWeight: "bold",
+    },
+    spinner: {
+      marginTop: height * 0.08,
+    },
+    stateText: {
+      textAlign: "center",
+      color: "#6B7280",
+      fontSize: RFPercentage(1.9),
+    },
+    breadcrumbRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: 14,
+      paddingHorizontal: 4,
+    },
+    upButton: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      backgroundColor: "#fff",
       borderWidth: 1,
       borderColor: "#E5E7EB",
-      borderRadius: 16,
-      padding: 16,
-      backgroundColor: "#fff",
-    },
-    tabContainer: {
-      flexDirection: "row",
-    },
-    tab: {
-      flex: 1,
-      padding: 12,
-      backgroundColor: "#fff",
-      alignItems: "center",
-    },
-    activeTab: {
-      backgroundColor: colors.primary,
-    },
-    tabText: {
-      fontSize: RFPercentage(2),
-      fontWeight: "bold",
-      color: colors.primary,
-    },
-    activeTabText: {
-      color: "#fff",
-    },
-    bodyText: {
-      fontWeight: "bold",
-      color: colors.primary,
-      marginBottom: height * 0.005,
-      fontSize: RFPercentage(2.2),
-    },
-    loader: {
-      fontWeight: "bold",
-      color: colors.primary,
-      fontSize: RFPercentage(2.6),
-      marginTop: height * 0.021,
-      marginLeft: height * 0.01,
-    },
-    errorText: {
-      color: "red",
-      fontSize: RFPercentage(2),
-      textAlign: "center",
-      marginTop: height * 0.3,
-    },
-    tableHeader: {
-      flexDirection: "row",
-      backgroundColor: colors.primary,
-      paddingVertical: height * 0.005,
-      paddingHorizontal: width * 0.02,
-      //marginBottom: height * 0.001,
-    },
-    headerCell: {
-      color: "white",
-      fontWeight: "bold",
-      fontSize: RFPercentage(2),
-      textAlign: "left",
-    },
-    dataRow: {
-      flexDirection: "row",
-      paddingVertical: height * 0.005,
-      paddingHorizontal: width * 0.02,
-      alignItems: "center",
-      borderWidth: 1,
-      borderColor: "#ccc",
-    },
-    dataCell: {
-      fontSize: RFPercentage(2),
-      color: "#333",
-    },
-    underlineText: {
-      textDecorationLine: "underline",
-      color: colors.primary,
-    },
-    leftAlign: {
-      textAlign: "left",
-    },
-    centerAlign: {
-      textAlign: "center",
-    },
-    rightAlign: {
-      textAlign: "right",
-    },
-    button: {
-      backgroundColor: colors.primary,
-      paddingVertical: height * 0.007,
-      paddingHorizontal: width * 0.04,
-      borderRadius: 6,
-    },
-    buttonText: {
-      color: "#fff",
-      fontWeight: "bold",
-      fontSize: RFPercentage(2),
-    },
-    noData: {
-      textAlign: "center",
-      marginVertical: height * 0.01,
-      color: "#888",
-      fontSize: RFPercentage(2),
-    },
-    modalContainer: {
-      flex: 1,
       justifyContent: "center",
       alignItems: "center",
-      backgroundColor: "rgba(0,0,0,0.5)",
+      marginRight: 8,
     },
-    modalContent: {
-      width: width * 0.8,
-      backgroundColor: "white",
-      borderRadius: 10,
-      padding: width * 0.05,
-    },
-    modalTitle: {
-      fontSize: RFPercentage(2.5),
-      fontWeight: "bold",
-      color: colors.primary,
-      marginBottom: height * 0.02,
-      textAlign: "center",
-    },
-    modalRow: {
+    breadcrumbs: {
       flexDirection: "row",
-      marginBottom: height * 0.015,
-    },
-    modalLabel: {
-      fontWeight: "bold",
-      width: width * 0.3,
-      fontSize: RFPercentage(2),
-    },
-    modalText: {
-      flex: 1,
-      fontSize: RFPercentage(2),
-    },
-    closeButton: {
-      marginTop: height * 0.02,
-      backgroundColor: colors.primary,
-      padding: width * 0.03,
-      borderRadius: 10,
       alignItems: "center",
     },
-    closeButtonText: {
-      color: "white",
+    crumb: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      marginRight: 4,
+    },
+    crumbText: {
+      fontSize: RFPercentage(1.9),
+      color: colors.link,
+      fontWeight: "600",
+    },
+    crumbCurrent: {
+      color: colors.primary,
       fontWeight: "bold",
+    },
+    countText: {
+      fontSize: RFPercentage(1.8),
+      color: "#6B7280",
+      marginTop: 14,
+      paddingHorizontal: 4,
+    },
+    listCard: {
+      paddingVertical: 0,
+      paddingHorizontal: 0,
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    rowDivider: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: "#E5E7EB",
+    },
+    rowPressable: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    iconBox: {
+      width: 38,
+      height: 38,
+      borderRadius: 10,
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 12,
+    },
+    rowMain: {
+      flex: 1,
+      marginRight: 8,
+    },
+    name: {
       fontSize: RFPercentage(2),
+      fontWeight: "600",
+      color: "#111827",
+    },
+    meta: {
+      fontSize: RFPercentage(1.7),
+      color: "#6B7280",
+      marginTop: 2,
+    },
+    infoButton: {
+      marginLeft: 8,
     },
   });

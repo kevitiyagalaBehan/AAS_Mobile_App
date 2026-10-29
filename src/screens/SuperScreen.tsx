@@ -239,7 +239,7 @@ export default function SuperScreen() {
           showsVerticalScrollIndicator={false}
         >
           <ScreenTitle
-            title="Super & pension"
+            title="Member Details"
             subtitle={fyLabel ? `${fyLabel} financial year` : undefined}
           />
 
@@ -282,6 +282,17 @@ export default function SuperScreen() {
                       );
                     })}
                   </ScrollView>
+                )}
+
+                {member && (
+                  <View style={styles.memberHeader}>
+                    <Text style={styles.memberName} numberOfLines={2}>
+                      {member.name}
+                    </Text>
+                    {member.age !== undefined && (
+                      <Text style={styles.memberAge}>Age {member.age}</Text>
+                    )}
+                  </View>
                 )}
 
                 {member?.balance && renderBalance(member.balance)}
@@ -373,6 +384,24 @@ const getStyles = (width: number, height: number) =>
     },
     chipTextSelected: {
       color: "#fff",
+    },
+    memberHeader: {
+      flexDirection: "row",
+      alignItems: "baseline",
+      justifyContent: "space-between",
+      marginTop: 14,
+      paddingHorizontal: 4,
+    },
+    memberName: {
+      flex: 1,
+      fontSize: RFPercentage(2.4),
+      fontWeight: "bold",
+      color: colors.primary,
+      marginRight: 8,
+    },
+    memberAge: {
+      fontSize: RFPercentage(1.8),
+      color: "#6B7280",
     },
     cardCaption: {
       fontSize: RFPercentage(1.8),

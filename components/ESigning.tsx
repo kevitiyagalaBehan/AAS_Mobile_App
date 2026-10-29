@@ -10,8 +10,14 @@ import {
   FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import { StackNavigationProp } from "@react-navigation/stack";
 import { getEsignDocuments } from "../src/utils/pimsApi";
-import { EsignDocument, Signatory } from "../src/navigation/types";
+import {
+  EsignDocument,
+  RootStackParamList,
+  Signatory,
+} from "../src/navigation/types";
 import { useAuth } from "../src/context/AuthContext";
 import { RFPercentage } from "react-native-responsive-fontsize";
 import { useRefreshTrigger } from "../hooks/useRefreshTrigger";
@@ -49,6 +55,7 @@ const getDueInfo = (dueDate?: string) => {
 
 export default function ESigning() {
   const { userData } = useAuth();
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const [documents, setDocuments] = useState<EsignDocument[]>([]);
   const [selectedTab, setSelectedTab] = useState<Tab>("toSign");
   const [selectedDocument, setSelectedDocument] =
@@ -100,8 +107,14 @@ export default function ESigning() {
     );
   };
 
-  const handleView = (documentPath: string) => {
-    Linking.openURL(`${docBaseUrl}/${documentPath}`);
+  // PDFs open in the in-app viewer; signing itself stays in the browser above
+  const handleView = (documentPath: string, title: string) => {
+    const url = `${docBaseUrl}/${documentPath}`;
+    if (/\.pdf$/i.test(documentPath.split("?")[0])) {
+      navigation.navigate("PdfViewer", { url, title });
+    } else {
+      Linking.openURL(url);
+    }
   };
 
   const renderDocument = ({ item }: { item: EsignDocument }) => {
@@ -184,7 +197,12 @@ export default function ESigning() {
         ) : !pending && documentPath ? (
           <TouchableOpacity
             style={styles.secondaryButton}
-            onPress={() => handleView(documentPath)}
+            onPress={() =>
+              handleView(
+                documentPath,
+                item.documents?.[0]?.documentName || item.subject
+              )
+            }
             accessibilityRole="button"
           >
             <Ionicons name="document-text-outline" size={18} color={colors.primary} />

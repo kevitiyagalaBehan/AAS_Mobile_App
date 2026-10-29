@@ -7,6 +7,7 @@ import { ESignProvider } from "./src/context/ESignContext";
 import LoginScreen from "./src/screens/LoginScreen";
 import PinLoginScreen from "./src/screens/PinLoginScreen";
 import PinSetupScreen from "./src/screens/PinSetupScreen";
+import PdfViewerScreen from "./src/screens/PdfViewerScreen";
 import DrawerNavigatorOther from "./src/navigation/DrawerNavigatorOther";
 import DrawerNavigatorFamily from "./src/navigation/DrawerNavigatorFamily";
 import { useVersionCheck } from "./hooks/useVersionCheck";
@@ -86,6 +87,11 @@ function AppNavigator() {
         <Stack.Screen
           name="Family"
           component={DrawerNavigatorFamily}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PdfViewer"
+          component={PdfViewerScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

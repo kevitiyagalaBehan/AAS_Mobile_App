@@ -137,6 +137,8 @@ export default function InboxList() {
                 selectedTab === "received" && styles.activeTab,
               ]}
               onPress={() => setSelectedTab("received")}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: selectedTab === "received" }}
             >
               <Text
                 style={[
@@ -151,6 +153,8 @@ export default function InboxList() {
             <TouchableOpacity
               style={[styles.tab, selectedTab === "sent" && styles.activeTab]}
               onPress={() => setSelectedTab("sent")}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: selectedTab === "sent" }}
             >
               <Text
                 style={[
@@ -462,24 +466,33 @@ const getStyles = (width: number, height: number) =>
     },
     tabContainer: {
       flexDirection: "row",
-      marginTop: height * 0.01,
+      backgroundColor: "#E2E6EE",
+      borderRadius: 12,
+      padding: 4,
+      marginBottom: 4,
     },
     tab: {
       flex: 1,
-      padding: 12,
-      backgroundColor: "#fff",
+      paddingVertical: 10,
+      borderRadius: 9,
       alignItems: "center",
     },
     activeTab: {
-      backgroundColor: colors.primary,
+      backgroundColor: "#fff",
+      shadowColor: "#000",
+      shadowOpacity: 0.08,
+      shadowRadius: 3,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: 2,
     },
     tabText: {
-      fontSize: RFPercentage(2.2),
+      fontSize: RFPercentage(1.9),
       fontWeight: "600",
-      color: colors.primary,
+      color: "#4B5563",
     },
     activeTabText: {
-      color: "#fff",
+      color: colors.primary,
+      fontWeight: "bold",
     },
     errorText: {
       color: "red",
