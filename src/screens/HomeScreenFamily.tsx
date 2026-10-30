@@ -33,6 +33,9 @@ export default function HomeScreenFamily() {
             paddingBottom: height * 0.02,
           }}
           showsVerticalScrollIndicator={false}
+          // Lets the Home message card's reply box send without first closing the keyboard
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets
         >
           <Header refreshTrigger={refreshTrigger} />
           <View style={styles.bodySection}>

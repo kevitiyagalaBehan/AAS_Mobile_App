@@ -11,6 +11,7 @@ export type ThreadSummary = {
   subject: string;
   participants: string[];
   lastText: string;
+  lastAuthor: string;
   lastDate: number;
   lastFromMe: boolean;
   unread: boolean;
@@ -20,6 +21,8 @@ type CachedThread = {
   commentCount: number;
   participants: string[];
   lastText: string;
+  // Missing from entries cached before it was added
+  lastAuthor?: string;
   lastDate: number;
   lastFromMe: boolean;
 };
@@ -71,6 +74,7 @@ const summarise = (
     commentCount: thread.commentCount,
     participants,
     lastText: last?.comment ?? thread.description,
+    lastAuthor: last?.author ?? thread.uploadedBy,
     lastDate: last ? new Date(last.date).getTime() : thread.uploadedDate,
     lastFromMe: last ? isOwnComment(last, myName) : !thread.fromPIMS,
   };
@@ -84,6 +88,16 @@ const getSeen = async (accountId: string): Promise<SeenState> => {
   return fresh;
 };
 
+// Lets the Home envelope badge and message card update as soon as a thread is read
+const seenListeners = new Set<() => void>();
+
+export const onThreadSeen = (listener: () => void) => {
+  seenListeners.add(listener);
+  return () => {
+    seenListeners.delete(listener);
+  };
+};
+
 export const markThreadSeen = async (
   accountId: string,
   threadId: string,
@@ -93,6 +107,7 @@ export const markThreadSeen = async (
   if ((seen.threads[threadId] ?? 0) >= lastDate) return;
   seen.threads[threadId] = lastDate;
   await writeJson(seenKey(accountId), seen);
+  seenListeners.forEach((listener) => listener());
 };
 
 export const loadThreadSummaries = async (
@@ -142,6 +157,8 @@ export const loadThreadSummaries = async (
             ? cached.participants
             : [thread.fromPIMS ? thread.uploadedBy || "AAS" : "AAS"],
         lastText: cached?.lastText ?? thread.description,
+        lastAuthor:
+          cached?.lastAuthor ?? cached?.participants[0] ?? thread.uploadedBy,
         lastDate,
         lastFromMe,
         unread: !lastFromMe && lastDate > seenAt,
