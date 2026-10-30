@@ -3,6 +3,7 @@ import { createDrawerNavigator } from "@react-navigation/drawer";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import BottomTabFamily from "./BottomTabNavigatorFamily";
 import CustomDrawerContent from "./CustomDrawerContent";
+import InboxStackNavigator from "./InboxStackNavigator";
 import { DrawerParamListFamily } from "./types";
 import { useAuth } from "../context/AuthContext";
 import { useAutoLogout } from "../../hooks/useAutoLogout";
@@ -48,6 +49,7 @@ export default function DrawerNavigatorFamily() {
           ),
         }}
       />
+      <Drawer.Screen name="Inbox" component={InboxStackNavigator} />
     </Drawer.Navigator>
   );
 }

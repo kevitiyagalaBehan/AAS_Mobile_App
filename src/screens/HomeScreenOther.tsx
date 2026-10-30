@@ -13,6 +13,7 @@ import {
   Header,
   HomeMessageCard,
   AllocationBreakdown,
+  RecentCashTransactions,
 } from "../../components";
 
 export default function HomeScreenOther() {
@@ -40,6 +41,10 @@ export default function HomeScreenOther() {
             <AllocationBreakdown
               refreshTrigger={refreshTrigger}
               onSeeHoldings={() => navigation.navigate("Portfolio")}
+            />
+            <RecentCashTransactions
+              refreshTrigger={refreshTrigger}
+              onSeeAll={() => navigation.navigate("Transactions")}
             />
           </View>
         </ScrollView>

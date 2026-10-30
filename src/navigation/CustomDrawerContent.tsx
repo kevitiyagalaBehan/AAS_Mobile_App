@@ -1,21 +1,13 @@
 import React, { useEffect, useState } from "react";
 import {
   DrawerContentScrollView,
-  DrawerItem,
-  DrawerItemList,
   useDrawerStatus,
 } from "@react-navigation/drawer";
-import {
-  Text,
-  View,
-  TouchableOpacity,
-  Image,
-  Alert,
-  StyleSheet,
-  useWindowDimensions,
-} from "react-native";
+import { Text, View, TouchableOpacity, Alert, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { RFPercentage } from "react-native-responsive-fontsize";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { getInitials } from "../../components/UserAvatar";
 import { useAuth } from "../context/AuthContext";
 import { handleLogout } from "../utils/logout";
 import { getLinkedUsers, revokePin, requestPasswordReset } from "../utils/pimsApi";
@@ -31,14 +23,13 @@ import { colors } from "../theme/colors";
 export default function CustomDrawerContent(props: any) {
   const { userData, setCurrentUserName, currentUserName, resetAuthState } =
     useAuth();
-  const { navigation, state, descriptors } = props;
-  const menuItems: DrawerMenuItem[] | undefined = props.menuItems;
+  const { navigation, state } = props;
+  const menuItems: DrawerMenuItem[] = props.menuItems ?? [];
   const drawerStatus = useDrawerStatus();
+  const insets = useSafeAreaInsets();
   const [hasPin, setHasPin] = useState<boolean>(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [sendingReset, setSendingReset] = useState<boolean>(false);
-  const { width, height } = useWindowDimensions();
-  const styles = getStyles(width, height);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -156,129 +147,176 @@ export default function CustomDrawerContent(props: any) {
     );
   };
 
-  // Each menu item is a full-screen drawer screen; nothing is highlighted
-  // while the bottom tabs (MainTabs) are open.
-  const renderMenuItems = () => {
-    const focusedRoute = state.routes[state.index];
-    const { drawerItemStyle, drawerLabelStyle } =
-      descriptors[focusedRoute.key].options;
+  const focusedRouteName = state.routes[state.index].name;
 
-    return menuItems!.map((item) => (
-      <DrawerItem
-        key={item.screen}
-        label={item.label}
-        focused={item.screen === focusedRoute.name}
-        style={drawerItemStyle}
-        labelStyle={drawerLabelStyle}
-        icon={({ color }) => (
-          <Ionicons name={item.icon as any} size={30} color={color} />
-        )}
-        onPress={() => {
-          navigation.navigate(item.screen);
-          navigation.closeDrawer();
-        }}
-      />
-    ));
-  };
+  const renderRow = (
+    label: string,
+    onPress: () => void,
+    options: { focused?: boolean; disabled?: boolean } = {}
+  ) => (
+    <TouchableOpacity
+      key={label}
+      style={[styles.row, options.focused && styles.rowFocused]}
+      onPress={onPress}
+      disabled={options.disabled}
+      activeOpacity={0.6}
+      accessibilityRole="button"
+    >
+      <Text style={styles.rowText}>{label}</Text>
+      <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+    </TouchableOpacity>
+  );
 
   return (
-    <DrawerContentScrollView {...props}>
-      <View style={styles.headerContainer}>
-        <Image
-          source={require("../../assets/aas_logo.png")}
-          style={styles.image}
-          resizeMode="contain"
-        />
-        <Text style={styles.userName}>
-          Welcome, {currentUserName || "User"}
-        </Text>
+    <View style={styles.container}>
+      <DrawerContentScrollView
+        {...props}
+        contentContainerStyle={{ paddingTop: insets.top }}
+      >
+        <TouchableOpacity
+          style={styles.closeButton}
+          onPress={() => navigation.closeDrawer()}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Close menu"
+        >
+          <Ionicons name="close" size={26} color={colors.primary} />
+        </TouchableOpacity>
+
+        <View style={styles.profile}>
+          <View style={styles.avatar}>
+            <Text style={styles.initials}>
+              {getInitials(currentUserName || "") || "?"}
+            </Text>
+          </View>
+          <View style={styles.profileText}>
+            <Text style={styles.userName} numberOfLines={1}>
+              {currentUserName || "User"}
+            </Text>
+            {userEmail && (
+              <Text style={styles.subtitle} numberOfLines={1}>
+                {userEmail}
+              </Text>
+            )}
+          </View>
+        </View>
+
+        {menuItems.length > 0 && (
+          <View style={styles.section}>
+            {/* Each menu item is a full-screen drawer screen; nothing is
+                highlighted while the bottom tabs (MainTabs) are open. */}
+            {menuItems.map((item) =>
+              renderRow(
+                item.label,
+                () => {
+                  navigation.navigate(
+                    item.screen,
+                    item.tab ? { screen: item.tab } : undefined
+                  );
+                  navigation.closeDrawer();
+                },
+                { focused: !item.tab && item.screen === focusedRouteName }
+              )
+            )}
+          </View>
+        )}
+
+        <View style={styles.section}>
+          {renderRow(hasPin ? "PIN login" : "Set up PIN login", handlePinPress)}
+          {renderRow(
+            sendingReset ? "Sending..." : "Reset password",
+            handleResetPasswordPress,
+            { disabled: sendingReset }
+          )}
+        </View>
+      </DrawerContentScrollView>
+
+      <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
+        <TouchableOpacity
+          onPress={() => handleLogout(navigation, true, resetAuthState)}
+          hitSlop={8}
+          accessibilityRole="button"
+        >
+          <Text style={styles.logoutText}>Log out</Text>
+        </TouchableOpacity>
       </View>
-
-      {menuItems ? renderMenuItems() : <DrawerItemList {...props} />}
-
-      <TouchableOpacity style={styles.pinButton} onPress={handlePinPress}>
-        <Ionicons name="keypad" size={26} color={colors.primary} />
-        <Text style={styles.pinText}>
-          {hasPin ? "PIN Login" : "Set Up PIN Login"}
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.resetPasswordButton}
-        onPress={handleResetPasswordPress}
-        disabled={sendingReset}
-      >
-        <Ionicons name="key" size={26} color={colors.primary} />
-        <Text style={styles.resetPasswordText}>
-          {sendingReset ? "Sending..." : "Reset Password"}
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.logoutButton}
-        onPress={() => handleLogout(navigation, true, resetAuthState)}
-      >
-        <Ionicons name="log-out" size={30} color="red" />
-        <Text style={styles.logoutText}>Logout</Text>
-      </TouchableOpacity>
-    </DrawerContentScrollView>
+    </View>
   );
 }
 
-const getStyles = (width: number, height: number) =>
-  StyleSheet.create({
-    headerContainer: {
-      alignItems: "center",
-      padding: 20,
-      borderBottomWidth: 1,
-      borderBottomColor: "#ccc",
-    },
-    image: {
-      width: width * 1,
-      height: height * 0.08,
-    },
-    userName: {
-      fontSize: RFPercentage(2),
-      fontWeight: "bold",
-      marginTop: height * 0.01,
-    },
-    pinButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      padding: 15,
-      borderTopWidth: 1,
-      borderTopColor: "#ccc",
-    },
-    pinText: {
-      fontSize: RFPercentage(2),
-      color: colors.primary,
-      fontWeight: "bold",
-      marginLeft: width * 0.03,
-    },
-    resetPasswordButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      padding: 15,
-      borderTopWidth: 1,
-      borderTopColor: "#ccc",
-    },
-    resetPasswordText: {
-      fontSize: RFPercentage(2),
-      color: colors.primary,
-      fontWeight: "bold",
-      marginLeft: width * 0.03,
-    },
-    logoutButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      padding: 15,
-      borderTopWidth: 1,
-      borderTopColor: "#ccc",
-    },
-    logoutText: {
-      fontSize: RFPercentage(2),
-      color: "red",
-      fontWeight: "bold",
-      marginLeft: width * 0.03,
-    },
-  });
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  closeButton: {
+    alignSelf: "flex-end",
+    padding: 8,
+    marginRight: 4,
+  },
+  profile: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  initials: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: RFPercentage(2),
+    letterSpacing: 0.5,
+  },
+  profileText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  userName: {
+    fontSize: RFPercentage(2.2),
+    fontWeight: "bold",
+    color: colors.primary,
+  },
+  subtitle: {
+    fontSize: RFPercentage(1.7),
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  section: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#E5E7EB",
+    paddingVertical: 8,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  rowFocused: {
+    backgroundColor: colors.primarySoft,
+  },
+  rowText: {
+    fontSize: RFPercentage(2),
+    fontWeight: "600",
+    color: colors.primary,
+  },
+  footer: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#E5E7EB",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  logoutText: {
+    fontSize: RFPercentage(2),
+    fontWeight: "bold",
+    color: "#DC2626",
+  },
+});

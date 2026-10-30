@@ -3,8 +3,9 @@ import { createDrawerNavigator } from "@react-navigation/drawer";
 import BottomTabOther from "./BottomTabNavigatorOther";
 import CustomDrawerContent from "./CustomDrawerContent";
 import DetailsScreen from "../screens/DetailsScreen";
+import PersonalDetailsScreen from "../screens/PersonalDetailsScreen";
 import CashTransactionsScreen from "../screens/CashTransactionsScreen";
-import DocumentScreen from "../screens/DocumentScreen";
+import InboxStackNavigator from "./InboxStackNavigator";
 import { DrawerParamListOther, DrawerMenuItem } from "./types";
 import { useAuth } from "../context/AuthContext";
 import { useAutoLogout } from "../../hooks/useAutoLogout";
@@ -13,9 +14,10 @@ import { RFPercentage } from "react-native-responsive-fontsize";
 const Drawer = createDrawerNavigator<DrawerParamListOther>();
 
 const MENU_ITEMS: DrawerMenuItem[] = [
+  { label: "Personal details", icon: "person-circle", screen: "PersonalDetails" },
   { label: "Details", icon: "list-circle", screen: "Details" },
-  { label: "Bank", icon: "card", screen: "Transactions" },
-  { label: "Documents", icon: "documents", screen: "Document" },
+  { label: "Bank account", icon: "card", screen: "Transactions" },
+  { label: "Documents", icon: "documents", screen: "MainTabs", tab: "Documents" },
 ];
 
 export default function DrawerNavigatorOther() {
@@ -51,9 +53,10 @@ export default function DrawerNavigatorOther() {
           accountId: userData?.accountId,
         }}
       />
+      <Drawer.Screen name="PersonalDetails" component={PersonalDetailsScreen} />
       <Drawer.Screen name="Details" component={DetailsScreen} />
       <Drawer.Screen name="Transactions" component={CashTransactionsScreen} />
-      <Drawer.Screen name="Document" component={DocumentScreen} />
+      <Drawer.Screen name="Inbox" component={InboxStackNavigator} />
     </Drawer.Navigator>
   );
 }

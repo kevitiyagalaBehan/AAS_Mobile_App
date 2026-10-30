@@ -1,14 +1,56 @@
 import React from "react";
-import { createStackNavigator } from "@react-navigation/stack";
+import {
+  createStackNavigator,
+  StackNavigationOptions,
+} from "@react-navigation/stack";
 import InboxList from "../screens/InboxListScreen";
 import { InboxStackParamList } from "./types";
 import InboxDetail from "../screens/InboxDetailScreen";
+import NewMessageScreen from "../screens/NewMessageScreen";
 import { RFPercentage } from "react-native-responsive-fontsize";
-import { Platform } from "react-native";
+import { Platform, StyleSheet, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../theme/colors";
 
 const Stack = createStackNavigator<InboxStackParamList>();
+
+// iMessage-style header: "< Messages" on the left, title centred.
+// A notification can open a conversation with no list underneath, so fall back to it.
+const conversationHeader = ({
+  navigation,
+}: {
+  navigation: any;
+}): StackNavigationOptions => ({
+  headerTitleAlign: "center",
+  headerTitleStyle: {
+    fontSize: RFPercentage(2.1),
+    color: colors.primary,
+    fontWeight: "bold",
+    maxWidth: 200,
+  },
+  headerLeft: () => (
+    <TouchableOpacity
+      onPress={() =>
+        navigation.canGoBack()
+          ? navigation.goBack()
+          : navigation.replace("InboxList")
+      }
+      hitSlop={10}
+      style={styles.backButton}
+      accessibilityRole="button"
+      accessibilityLabel="Back to messages"
+    >
+      <Ionicons name="chevron-back" size={22} color={colors.link} />
+      <Text style={styles.backText}>Messages</Text>
+    </TouchableOpacity>
+  ),
+  headerStyle: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#E5E7EB",
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+});
 
 export default function InboxStackNavigator() {
   return (
@@ -50,23 +92,28 @@ export default function InboxStackNavigator() {
       <Stack.Screen
         name="InboxDetail"
         component={InboxDetail}
-        options={{
-          title: "Inbox Details",
-          // Left-aligned and a bit smaller so long subjects show more text
-          headerTitleAlign: "left",
-          headerTitleStyle: {
-            fontSize: RFPercentage(2.2),
-            color: colors.primary,
-            fontWeight: "bold",
-          },
-          headerStyle: {
-            borderBottomWidth: 1,
-            borderBottomColor: "#E5E7EB",
-            elevation: 0,
-            shadowOpacity: 0,
-          },
-        }}
+        options={(props) => ({ ...conversationHeader(props), title: "Message" })}
+      />
+      <Stack.Screen
+        name="NewMessage"
+        component={NewMessageScreen}
+        options={(props) => ({
+          ...conversationHeader(props),
+          title: "New message",
+        })}
       />
     </Stack.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: Platform.OS === "ios" ? 8 : 0,
+  },
+  backText: {
+    fontSize: RFPercentage(2.1),
+    color: colors.link,
+  },
+});

@@ -1,605 +1,313 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   Text,
   FlatList,
   TouchableOpacity,
   StyleSheet,
   View,
-  useWindowDimensions,
-  Modal,
   TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  TouchableWithoutFeedback,
-  Keyboard,
+  ActivityIndicator,
 } from "react-native";
-import Checkbox from "expo-checkbox";
-import { useNavigation } from "@react-navigation/native";
-import {
-  InboxMessage,
-  InboxStackNavigationProp,
-  Messages,
-  UserRecipient,
-} from "../src/navigation/types";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { RFPercentage } from "react-native-responsive-fontsize";
 import { useAuth } from "../src/context/AuthContext";
+import { InboxStackNavigationProp } from "../src/navigation/types";
 import {
-  getMessages,
-  getNotifyRecipient,
-  sendEmailNotification,
-  sendInboxMessage,
-} from "../src/utils/pimsApi";
-import { useRefreshTrigger } from "../hooks/useRefreshTrigger";
+  loadThreadSummaries,
+  markThreadSeen,
+  ThreadSummary,
+} from "../src/utils/messageThreads";
+import { avatarFor, formatThreadDate } from "../src/utils/messageFormat";
 import { colors } from "../src/theme/colors";
 
 export default function InboxList() {
   const { userData, loggedInUser } = useAuth();
   const navigation = useNavigation<InboxStackNavigationProp<"InboxList">>();
-  const [modalVisible, setModalVisible] = useState(false);
-  const [allRecipients, setAllRecipients] = useState<UserRecipient[]>([]);
-  const [selectedRecipientIds, setSelectedRecipientIds] = useState<string[]>(
-    []
-  );
-  const [newRecipientName, setNewRecipientName] = useState("");
-  const [newRecipientEmail, setNewRecipientEmail] = useState("");
-  const [subject, setSubject] = useState("");
-  const [messageBody, setMessageBody] = useState("");
-  const [formError, setFormError] = useState<{
-    subject?: string;
-    messageBody?: string;
-  }>({});
-
-  const [messages, setMessages] = useState<Messages[] | null>(null);
-  const [selectedTab, setSelectedTab] = useState<"received" | "sent">(
-    "received"
-  );
-  const [isScrollable, setIsScrollable] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [threads, setThreads] = useState<ThreadSummary[] | null>(null);
+  const [query, setQuery] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { width, height } = useWindowDimensions();
-  const styles = getStyles(width, height);
 
-  const fetchData = async () => {
-    if (!userData?.authToken || !userData?.accountId) {
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
+  const load = useCallback(async () => {
+    if (!userData?.authToken || !userData?.accountId) return;
     try {
-      const messages = await getMessages(
-        userData.authToken,
-        userData.accountId
+      setError(null);
+      setThreads(
+        await loadThreadSummaries(
+          userData.authToken,
+          userData.accountId,
+          loggedInUser?.fullName
+        )
       );
-      setMessages(messages);
-    } catch (err) {
+    } catch {
       setError("Failed to load messages");
-    } finally {
-      setLoading(false);
     }
+  }, [userData?.authToken, userData?.accountId, loggedInUser?.fullName]);
+
+  // Reload on return from a conversation so previews and unread dots stay current
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
   };
 
-  const receivedCount = messages?.filter((msg) => msg.fromPIMS).length || 0;
-  const sentCount = messages?.filter((msg) => !msg.fromPIMS).length || 0;
+  const goHome = () =>
+    navigation.navigate("MainTabs" as any, {
+      screen:
+        userData?.accountType === "Family Group" ? "HomeFamily" : "HomeOther",
+    });
 
-  const { refreshTrigger, refreshing, onRefresh } =
-    useRefreshTrigger(fetchData);
+  const openThread = (thread: ThreadSummary) => {
+    if (userData?.accountId) {
+      markThreadSeen(userData.accountId, thread.id, thread.lastDate);
+    }
+    setThreads((prev) =>
+      prev?.map((t) => (t.id === thread.id ? { ...t, unread: false } : t)) ??
+      null
+    );
+    navigation.navigate("InboxDetail", {
+      queryId: thread.id,
+      title: thread.subject,
+    });
+  };
 
-  useEffect(() => {
-    const fetchRecipients = async () => {
-      if (!userData?.authToken || !userData?.accountId) return;
+  const search = query.trim().toLowerCase();
+  const visible = (threads ?? []).filter(
+    (t) =>
+      !search ||
+      t.subject.toLowerCase().includes(search) ||
+      t.lastText.toLowerCase().includes(search) ||
+      t.participants.some((p) => p.toLowerCase().includes(search))
+  );
 
-      try {
-        const result = await getNotifyRecipient(
-          userData.authToken,
-          userData.accountId
-        );
+  const renderThread = ({ item }: { item: ThreadSummary }) => {
+    const name = item.participants.join(", ");
+    const avatar = avatarFor(item.participants[0] ?? "AAS");
 
-        if (result && result.length > 0) {
-          const convertedRecipients: UserRecipient[] = result.map((r) => ({
-            id: r.id,
-            name: r.name,
-            emailAddress: r.emailAddress,
-          }));
-
-          setAllRecipients(convertedRecipients);
-
-          setSelectedRecipientIds(convertedRecipients.map((r) => r.id));
-        }
-      } catch (err) {
-        console.error("Failed to fetch recipients:", err);
-      }
-    };
-
-    fetchRecipients();
-  }, [userData?.authToken, userData?.accountId]);
-
-  useEffect(() => {
-    fetchData();
-  }, [userData?.authToken, userData?.accountId, refreshTrigger]);
+    return (
+      <TouchableOpacity
+        style={styles.row}
+        onPress={() => openThread(item)}
+        activeOpacity={0.6}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.unread ? "Unread. " : ""}${name}. ${item.lastText}`}
+      >
+        <View style={styles.unreadSlot}>
+          {item.unread && <View style={styles.unreadDot} />}
+        </View>
+        <View style={[styles.avatar, { backgroundColor: avatar.color }]}>
+          <Text
+            style={styles.avatarText}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
+            {avatar.initials}
+          </Text>
+        </View>
+        <View style={styles.rowBody}>
+          <View style={styles.rowTop}>
+            <Text style={styles.name} numberOfLines={2}>
+              {name}
+            </Text>
+            <Text style={styles.time}>{formatThreadDate(item.lastDate)}</Text>
+            <Ionicons name="chevron-forward" size={14} color="#9CA3AF" />
+          </View>
+          <Text style={styles.preview} numberOfLines={2}>
+            {item.lastText}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => setModalVisible(true)}
-      >
-        <Text style={styles.buttonText}>New Message</Text>
-      </TouchableOpacity>
-
-      <View style={styles.bodySection}>
-        <View style={styles.border}>
-          <View style={styles.tabContainer}>
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                selectedTab === "received" && styles.activeTab,
-              ]}
-              onPress={() => setSelectedTab("received")}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: selectedTab === "received" }}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  selectedTab === "received" && styles.activeTabText,
-                ]}
-              >
-                Received ({receivedCount})
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.tab, selectedTab === "sent" && styles.activeTab]}
-              onPress={() => setSelectedTab("sent")}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: selectedTab === "sent" }}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  selectedTab === "sent" && styles.activeTabText,
-                ]}
-              >
-                Sent ({sentCount})
-              </Text>
-            </TouchableOpacity>
-          </View>
-          {loading ? (
-            <Text style={styles.loader}>Loading...</Text>
-          ) : error ? (
-            <Text style={styles.errorText}>{error}</Text>
-          ) : (
-            <FlatList
-              data={
-                messages?.filter((msg) =>
-                  selectedTab === "received" ? msg.fromPIMS : !msg.fromPIMS
-                ) || []
-              }
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.item}
-                  onPress={() =>
-                    navigation.navigate("InboxDetail", {
-                      queryId: item.id,
-                      title: item.description,
-                    })
-                  }
-                >
-                  <Text style={styles.title}>{item.description}</Text>
-                  <Text style={styles.date}>
-                    {new Date(item.uploadedDate).toLocaleDateString("en-AU", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </Text>
-                </TouchableOpacity>
-              )}
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              onContentSizeChange={(_, contentHeight) => {
-                setIsScrollable(contentHeight > height);
-              }}
-              contentContainerStyle={{
-                flexGrow: 1,
-                paddingBottom: isScrollable ? height * 0.22 : 0,
-              }}
-              ListEmptyComponent={() => (
-                <Text style={styles.noData}>No messages available</Text>
-              )}
-              showsVerticalScrollIndicator={false}
-            />
-          )}
-        </View>
+      <View style={styles.topBar}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={goHome}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Back to home"
+        >
+          <Ionicons name="chevron-back" size={22} color={colors.link} />
+          <Text style={styles.backText}>Home</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => navigation.navigate("NewMessage")}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="New message"
+        >
+          <Ionicons name="create-outline" size={26} color={colors.link} />
+        </TouchableOpacity>
       </View>
-      <Modal
-        visible={modalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-            style={styles.modalContainer}
-          >
-            <View style={styles.modalContent}>
-              <ScrollView>
-                <Text style={styles.modalTitle}>New Message</Text>
 
-                <Text style={styles.label}>Notify To:</Text>
-                {allRecipients.map((recipient) => (
-                  <View key={recipient.id} style={styles.checkboxContainer}>
-                    <Checkbox
-                      style={styles.checkbox}
-                      value={selectedRecipientIds.includes(recipient.id)}
-                      onValueChange={(isChecked) => {
-                        setSelectedRecipientIds((prev) =>
-                          isChecked
-                            ? [...prev, recipient.id]
-                            : prev.filter((id) => id !== recipient.id)
-                        );
-                      }}
-                      color={
-                        selectedRecipientIds.includes(recipient.id)
-                          ? colors.primary
-                          : undefined
-                      }
-                    />
+      <Text style={styles.largeTitle} accessibilityRole="header">
+        Messages
+      </Text>
 
-                    <Text style={styles.recipientText}>
-                      {recipient.name} &lt;{recipient.emailAddress}&gt;
-                    </Text>
-                  </View>
-                ))}
-                {allRecipients.length === 0 && (
-                  <Text style={styles.recipientText}>
-                    No recipients available
-                  </Text>
-                )}
+      <View style={styles.searchBox}>
+        <Ionicons name="search" size={16} color="#6B7280" />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search"
+          placeholderTextColor="#6B7280"
+          value={query}
+          onChangeText={setQuery}
+          autoCorrect={false}
+          clearButtonMode="while-editing"
+          returnKeyType="search"
+        />
+      </View>
 
-                <TextInput
-                  placeholder="Name (optional)"
-                  style={styles.input}
-                  value={newRecipientName}
-                  onChangeText={setNewRecipientName}
-                />
-
-                <TextInput
-                  placeholder="Email"
-                  style={styles.input}
-                  value={newRecipientEmail}
-                  onChangeText={setNewRecipientEmail}
-                />
-
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.addButton]}
-                  onPress={() => {
-                    if (newRecipientEmail.trim()) {
-                      const newId = Date.now().toString();
-                      const newRecipient = {
-                        id: newId,
-                        name: newRecipientName.trim(),
-                        emailAddress: newRecipientEmail.trim(),
-                      };
-
-                      setAllRecipients((prev) => [...prev, newRecipient]);
-                      setSelectedRecipientIds((prev) => [...prev, newId]);
-                      setNewRecipientName("");
-                      setNewRecipientEmail("");
-                    }
-                  }}
-                >
-                  <Text style={styles.modalButtonText}>Add Recipient</Text>
-                </TouchableOpacity>
-
-                <TextInput
-                  placeholder="Subject"
-                  style={styles.input}
-                  value={subject}
-                  onChangeText={(text) => {
-                    setSubject(text);
-                    if (text.trim())
-                      setFormError((prev) => ({ ...prev, subject: "" }));
-                  }}
-                />
-                {formError?.subject ? (
-                  <Text style={styles.formError}>{formError.subject}</Text>
-                ) : null}
-
-                <TextInput
-                  placeholder="Message"
-                  style={[styles.input, { height: height * 0.1 }]}
-                  value={messageBody}
-                  onChangeText={(text) => {
-                    setMessageBody(text);
-                    if (text.trim())
-                      setFormError((prev) => ({ ...prev, messageBody: "" }));
-                  }}
-                  multiline
-                />
-                {formError?.messageBody ? (
-                  <Text style={styles.formError}>{formError.messageBody}</Text>
-                ) : null}
-
-                <View style={styles.modalButtons}>
-                  <TouchableOpacity
-                    style={[styles.modalButton, styles.sendButton]}
-                    onPress={async () => {
-                      let errorObj: { subject?: string; messageBody?: string } =
-                        {};
-
-                      if (!subject.trim()) {
-                        errorObj.subject = "Subject is required.";
-                      }
-
-                      if (!messageBody.trim()) {
-                        errorObj.messageBody = "Message is required.";
-                      }
-
-                      if (Object.keys(errorObj).length > 0) {
-                        setFormError(errorObj);
-                        return;
-                      }
-
-                      if (
-                        !userData?.authToken ||
-                        !userData?.accountId ||
-                        !loggedInUser?.userId
-                      ) {
-                        setFormError({
-                          subject: "User session invalid.",
-                        });
-                        return;
-                      }
-
-                      const selectedRecipients = allRecipients.filter((r) =>
-                        selectedRecipientIds.includes(r.id)
-                      );
-
-                      const recipientPayload = selectedRecipients.map((r) => ({
-                        DisplayName: r.name || r.emailAddress,
-                        EmailAddress: r.emailAddress,
-                        Type: "TO",
-                      }));
-
-                      if (recipientPayload.length === 0) {
-                        setFormError({
-                          subject: "Please select at least one recipient.",
-                        });
-                        return;
-                      }
-
-                      try {
-                        const payload: InboxMessage = {
-                          Description: subject.trim(),
-                          Message: messageBody.trim(),
-                          Date: new Date().toISOString(),
-                          UserId: loggedInUser?.userId || "",
-                          Attachments: [],
-                        };
-
-                        await sendInboxMessage(
-                          userData.authToken,
-                          userData.accountId,
-                          payload
-                        );
-
-                        await sendEmailNotification(
-                          userData.authToken,
-                          userData.accountId,
-                          subject.trim(),
-                          messageBody.trim(),
-                          recipientPayload
-                        );
-
-                        setSubject("");
-                        setMessageBody("");
-                        setFormError({});
-                        setModalVisible(false);
-                        fetchData();
-                      } catch (error) {
-                        console.error("Failed to send message:", error);
-                        setFormError({
-                          subject: "Failed to send message. Please try again.",
-                        });
-                      }
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.modalButtonText}>Send</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.modalButton, styles.closeButton]}
-                    onPress={() => setModalVisible(false)}
-                  >
-                    <Text style={styles.modalButtonText}>Cancel</Text>
-                  </TouchableOpacity>
-                </View>
-              </ScrollView>
-            </View>
-          </KeyboardAvoidingView>
-        </TouchableWithoutFeedback>
-      </Modal>
+      {threads === null && !error ? (
+        <ActivityIndicator style={styles.spinner} color={colors.primary} />
+      ) : (
+        <FlatList
+          data={visible}
+          keyExtractor={(item) => item.id}
+          renderItem={renderThread}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>
+              {error ??
+                (search ? "No matching messages" : "No messages yet")}
+            </Text>
+          }
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </View>
   );
 }
 
-const getStyles = (width: number, height: number) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      marginTop: 12,
-    },
-    bodySection: {
-      backgroundColor: "#fff",
-      borderRadius: 16,
-    },
-    border: {
-      borderWidth: 1,
-      borderColor: "#E5E7EB",
-      borderRadius: 16,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      backgroundColor: "#fff",
-    },
-    button: {
-      width: width * 0.4,
-      height: height * 0.05,
-      backgroundColor: colors.primary,
-      paddingVertical: height * 0.007,
-      paddingHorizontal: width * 0.04,
-      marginBottom: height * 0.01,
-      borderRadius: 6,
-      alignSelf: "flex-end",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    buttonText: {
-      color: "#fff",
-      fontWeight: "bold",
-      fontSize: RFPercentage(2),
-    },
-    tabContainer: {
-      flexDirection: "row",
-      backgroundColor: "#E2E6EE",
-      borderRadius: 12,
-      padding: 4,
-      marginBottom: 4,
-    },
-    tab: {
-      flex: 1,
-      paddingVertical: 10,
-      borderRadius: 9,
-      alignItems: "center",
-    },
-    activeTab: {
-      backgroundColor: "#fff",
-      shadowColor: "#000",
-      shadowOpacity: 0.08,
-      shadowRadius: 3,
-      shadowOffset: { width: 0, height: 1 },
-      elevation: 2,
-    },
-    tabText: {
-      fontSize: RFPercentage(1.9),
-      fontWeight: "600",
-      color: "#4B5563",
-    },
-    activeTabText: {
-      color: colors.primary,
-      fontWeight: "bold",
-    },
-    errorText: {
-      color: "red",
-      fontSize: RFPercentage(2),
-      textAlign: "center",
-      marginTop: height * 0.3,
-    },
-    loader: {
-      fontWeight: "bold",
-      color: colors.primary,
-      fontSize: RFPercentage(2.6),
-      marginTop: height * 0.021,
-      marginLeft: height * 0.01,
-    },
-    item: {
-      paddingVertical: height * 0.01,
-      borderBottomWidth: 1,
-      borderBottomColor: "#ccc",
-    },
-    title: {
-      fontSize: RFPercentage(2.5),
-      fontWeight: "600",
-      color: colors.primary,
-    },
-    date: {
-      fontSize: RFPercentage(2),
-      color: "#555",
-      marginTop: 4,
-    },
-    noData: {
-      textAlign: "center",
-      marginVertical: height * 0.02,
-      color: "#888",
-      fontSize: RFPercentage(2),
-    },
-    modalContainer: {
-      flex: 1,
-      justifyContent: "center",
-      backgroundColor: "rgba(0,0,0,0.5)",
-      padding: 20,
-    },
-    modalContent: {
-      backgroundColor: "#fff",
-      borderRadius: 10,
-      padding: 20,
-    },
-    modalTitle: {
-      fontSize: RFPercentage(2.8),
-      fontWeight: "bold",
-      color: colors.primary,
-      marginBottom: 16,
-      textAlign: "center",
-    },
-    label: {
-      fontWeight: "bold",
-      fontSize: RFPercentage(2),
-    },
-    recipientText: {
-      //marginBottom: 8,
-      fontSize: RFPercentage(2),
-      //color: "#333",
-    },
-    checkboxContainer: {
-      flexDirection: "row",
-      alignItems: "center",
-      //marginBottom: 5,
-    },
-    checkbox: {
-      margin: 8,
-    },
-    addButton: {
-      backgroundColor: colors.primary,
-      marginBottom: height * 0.02,
-    },
-    input: {
-      borderWidth: 1,
-      borderColor: "#ccc",
-      borderRadius: 6,
-      padding: 12,
-      marginBottom: height * 0.01,
-      fontSize: RFPercentage(2),
-    },
-    modalButtons: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-    },
-    modalButton: {
-      padding: 12,
-      borderRadius: 10,
-      width: "48%",
-      alignItems: "center",
-    },
-    sendButton: {
-      backgroundColor: colors.primary,
-    },
-    closeButton: {
-      backgroundColor: "#ccc",
-    },
-    modalButtonText: {
-      color: "white",
-      fontSize: RFPercentage(2),
-      fontWeight: "bold",
-    },
-    formError: {
-      color: "red",
-      fontSize: RFPercentage(2),
-      marginBottom: 8,
-      marginTop: -8,
-    },
-  });
+const AVATAR_SIZE = 44;
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    paddingTop: 8,
+  },
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  backText: {
+    fontSize: RFPercentage(2.1),
+    color: colors.link,
+  },
+  largeTitle: {
+    fontSize: RFPercentage(4),
+    fontWeight: "bold",
+    color: colors.primary,
+    paddingHorizontal: 16,
+    marginTop: 8,
+  },
+  searchBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EEF0F4",
+    borderRadius: 10,
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 6,
+    paddingHorizontal: 10,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 8,
+    fontSize: RFPercentage(2),
+    color: "#111827",
+  },
+  spinner: {
+    marginTop: 40,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingVertical: 10,
+    paddingRight: 12,
+  },
+  unreadSlot: {
+    width: 20,
+    height: AVATAR_SIZE,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  unreadDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: colors.link,
+  },
+  avatar: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  avatarText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: RFPercentage(1.9),
+  },
+  rowBody: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  rowTop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  name: {
+    flex: 1,
+    fontSize: RFPercentage(2.1),
+    fontWeight: "bold",
+    color: "#111827",
+    marginRight: 8,
+  },
+  time: {
+    fontSize: RFPercentage(1.7),
+    color: "#6B7280",
+    marginRight: 2,
+    marginTop: 2,
+  },
+  preview: {
+    fontSize: RFPercentage(1.8),
+    color: "#4B5563",
+    marginTop: 1,
+  },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "#E5E7EB",
+    marginLeft: 20 + AVATAR_SIZE + 10,
+  },
+  emptyText: {
+    textAlign: "center",
+    color: "#6B7280",
+    fontSize: RFPercentage(2),
+    marginTop: 40,
+  },
+});

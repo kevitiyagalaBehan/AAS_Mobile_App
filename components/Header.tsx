@@ -12,7 +12,6 @@ import { useEffect, useState } from "react";
 import { RFPercentage } from "react-native-responsive-fontsize";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../src/context/AuthContext";
-import UserAvatar from "./UserAvatar";
 import {
   getSuperFundName,
   getLinkedUsers,
@@ -21,7 +20,8 @@ import {
   getInvestments,
 } from "../src/utils/pimsApi";
 import { getHoldingsTotal } from "../src/utils/format";
-import { useNavigation } from "@react-navigation/native";
+import { useUnreadMessageCount } from "../hooks/useUnreadMessageCount";
+import { DrawerActions, useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { RootStackParamList, AccountOption } from "../src/navigation/types";
 import { colors } from "../src/theme/colors";
@@ -46,7 +46,6 @@ const formatCurrency = (value: number) =>
 export default function Header({ refreshTrigger }: HeaderProps) {
   const [userAccountType, setUserAccountType] = useState<string | null>(null);
   const [userFirstName, setUserFirstName] = useState<string | null>(null);
-  const [userFullName, setUserFullName] = useState<string | null>(null);
   const [totalBalance, setTotalBalance] = useState<number | null>(null);
   const [pickerVisible, setPickerVisible] = useState(false);
   const {
@@ -61,6 +60,7 @@ export default function Header({ refreshTrigger }: HeaderProps) {
   const { width, height } = useWindowDimensions();
   const styles = getStyles(width, height);
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const unreadCount = useUnreadMessageCount(refreshTrigger);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -78,7 +78,6 @@ export default function Header({ refreshTrigger }: HeaderProps) {
 
       const accountInfo = await getLinkedUsers(userData.authToken);
       setUserAccountType(accountInfo?.assignedAccountType || null);
-      setUserFullName(accountInfo?.fullName || null);
       setUserFirstName(accountInfo?.fullName?.trim().split(" ")[0] || null);
 
       if (accountDetails && accountDetails.length > 0) {
@@ -209,7 +208,37 @@ export default function Header({ refreshTrigger }: HeaderProps) {
           {getGreeting()}
           {userFirstName ? `, ${userFirstName}` : ""}
         </Text>
-        <UserAvatar name={userFullName} />
+        <View style={styles.headerButtons}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => navigation.navigate("Inbox" as any)}
+            activeOpacity={0.7}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel={
+              unreadCount > 0 ? `Messages, ${unreadCount} unread` : "Messages"
+            }
+          >
+            <Ionicons name="mail-outline" size={20} color={colors.primary} />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+            activeOpacity={0.7}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel="Open menu"
+          >
+            <Ionicons name="menu" size={22} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.balanceCard}>
@@ -299,6 +328,35 @@ const getStyles = (width: number, height: number) =>
       fontSize: RFPercentage(2),
       color: "#5A6478",
       marginRight: width * 0.03,
+    },
+    headerButtons: {
+      flexDirection: "row",
+      gap: 10,
+    },
+    iconButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: "#fff",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    badge: {
+      position: "absolute",
+      top: -2,
+      right: -2,
+      minWidth: 18,
+      height: 18,
+      borderRadius: 9,
+      paddingHorizontal: 4,
+      backgroundColor: "#DC2626",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    badgeText: {
+      color: "#fff",
+      fontSize: 11,
+      fontWeight: "bold",
     },
     accountRow: {
       flexDirection: "row",

@@ -124,10 +124,10 @@ export default function AllocationBreakdown({
               <Text style={styles.className} numberOfLines={1}>
                 {asset.assetClass}
               </Text>
-              <Text style={styles.classValue}>
+              <Text style={styles.classValue} numberOfLines={1}>
                 {formatCurrency(asset.marketValue, 0)}
               </Text>
-              <Text style={styles.classPercent}>
+              <Text style={styles.classPercent} numberOfLines={1}>
                 {asset.percentage.toFixed(2)}%
               </Text>
             </View>
@@ -218,8 +218,9 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     marginRight: 12,
   },
+  // minWidth keeps the column aligned; it grows rather than wrapping with larger text
   classPercent: {
-    width: 64,
+    minWidth: 64,
     textAlign: "right",
     fontSize: RFPercentage(1.9),
     fontWeight: "bold",

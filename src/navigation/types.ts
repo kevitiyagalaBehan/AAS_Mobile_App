@@ -40,38 +40,42 @@ export type BottomTabParamListOther = {
   HomeOther: { authToken: string; accountId: string };
   Portfolio: undefined;
   Super: undefined;
-  Inbox: { authToken: string; accountId: string };
+  Documents: undefined;
   ESigning: { authToken: string; accountId: string };
 };
 
 export type BottomTabParamListFamily = {
   HomeFamily: { authToken: string; accountId: string };
   Portfolio: undefined;
-  Inbox: { authToken: string; accountId: string };
   ESigning: { authToken: string; accountId: string };
 };
 
 // Drawer Navigation
 export type DrawerParamListOther = {
   MainTabs: { authToken: string; accountId: string };
+  PersonalDetails: undefined;
   Details: undefined;
   Transactions: undefined;
-  Document: undefined;
+  Inbox: undefined;
 };
 
 export type DrawerMenuItem = {
   label: string;
   icon: string;
   screen: string;
+  // Set when the item opens a bottom tab inside MainTabs rather than a drawer screen
+  tab?: string;
 };
 
 export type DrawerParamListFamily = {
   MainTabs: { authToken: string; accountId: string };
+  Inbox: undefined;
 };
 
 export type InboxStackParamList = {
   InboxList: { authToken: string; accountId: string };
   InboxDetail: { queryId: string; title: string };
+  NewMessage: undefined;
 };
 
 export type InboxStackNavigationProp<T extends keyof InboxStackParamList> =
@@ -134,6 +138,22 @@ export type RegisterPinResult =
 export type RevokePinResult =
   | { success: true }
   | { success: false; message: string };
+
+export interface ClientProfile {
+  companyID: string;
+  contactNameFirst: string;
+  contactNameLast: string;
+  // "mailling" is the API's spelling
+  maillingAddress1: string;
+  maillingAddress2: string;
+  maillingAddress3: string;
+  superFundCode: string;
+  superFundID: string;
+  superFundName: string;
+  userEmailAddress: string;
+  userEmailPwd: string;
+  userLevelName: string;
+}
 
 export type PinLoginResult =
   | { status: "success"; login: LoginResponse; newDeviceToken: string | null }

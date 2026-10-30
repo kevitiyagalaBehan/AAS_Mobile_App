@@ -3,7 +3,7 @@ import { StackNavigationProp } from "@react-navigation/stack";
 import { useAuth } from "../src/context/AuthContext";
 import { getLinkedUsers, savePushToken } from "../src/utils/pimsApi";
 import { registerForPushNotificationsAsync } from "../src/utils/notification";
-import { navigationRef } from "../src/navigation/RootNavigation";
+import { navigationRef, inboxRoute } from "../src/navigation/RootNavigation";
 import {
   LinkedUsers,
   LoginResponse,
@@ -53,16 +53,13 @@ export const useSession = () => {
       navigation.replace(userType, {});
 
       setTimeout(() => {
-        navigationRef.navigate(userType, {
-          screen: "MainTabs",
-          params: {
-            screen: "Inbox",
-            params: {
-              screen: pendingNavigation.screen,
-              params: pendingNavigation.params,
-            },
-          },
-        });
+        navigationRef.navigate(
+          userType,
+          inboxRoute(
+            pendingNavigation.screen as "InboxList" | "InboxDetail",
+            pendingNavigation.params
+          ) as any
+        );
       }, 300);
 
       setPendingNavigation(null);

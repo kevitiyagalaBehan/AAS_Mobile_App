@@ -12,7 +12,7 @@ type UserAvatarProps = {
 };
 
 // First letter of the first and last names, e.g. "Isabella Smith" -> "IS"
-const getInitials = (name: string) => {
+export const getInitials = (name: string) => {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "";
   const first = parts[0][0];

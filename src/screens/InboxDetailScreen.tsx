@@ -1,67 +1,81 @@
-import React, { useEffect, useLayoutEffect, useState } from "react";
+import React, { useCallback, useLayoutEffect, useRef, useState } from "react";
 import {
   View,
   Text,
   FlatList,
-  TextInput,
   KeyboardAvoidingView,
   ActivityIndicator,
   StyleSheet,
-  TouchableOpacity,
   Pressable,
-  useWindowDimensions,
   Alert,
 } from "react-native";
-import { useRoute, useNavigation } from "@react-navigation/native";
-import { InboxRouteProp } from "../navigation/types";
+import {
+  useRoute,
+  useNavigation,
+  useFocusEffect,
+} from "@react-navigation/native";
+import { useHeaderHeight } from "@react-navigation/elements";
+import { Ionicons } from "@expo/vector-icons";
 import { RFPercentage } from "react-native-responsive-fontsize";
+import { InboxRouteProp, Comments } from "../navigation/types";
 import { useAuth } from "../context/AuthContext";
 import { loadComments, sendComment, deleteComment } from "../utils/pimsApi";
-import { Comments } from "../navigation/types";
-import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useHeaderHeight } from "@react-navigation/elements";
+import { isOwnComment, markThreadSeen } from "../utils/messageThreads";
+import { formatBubbleDay, formatTime, isSameDay } from "../utils/messageFormat";
+import { MessageComposer } from "../../components";
 import { colors } from "../theme/colors";
 
-type ChatListItem =
-  | { type: "day"; key: string; label: string }
-  | { type: "comment"; key: string; comment: Comments };
+// Check for replies while the conversation is open
+const POLL_MS = 15000;
+// Gap after which a bubble starts a new group (shows its own name/time)
+const GROUP_GAP_MS = 5 * 60 * 1000;
 
-const startOfDay = (date: Date) =>
-  new Date(date.getFullYear(), date.getMonth(), date.getDate());
-
-const getDayLabel = (date: Date) => {
-  const daysAgo = Math.round(
-    (startOfDay(new Date()).getTime() - startOfDay(date).getTime()) / 86400000
-  );
-  if (daysAgo === 0) return "Today";
-  if (daysAgo === 1) return "Yesterday";
-  return date.toLocaleDateString("en-AU", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+type Bubble = {
+  key: string;
+  text: string;
+  date: number;
+  author: string;
+  mine: boolean;
+  status: "sent" | "sending" | "failed";
+  commentId?: string;
 };
 
-// Oldest-to-newest comments with a day header before each new day, returned
-// newest-first because the list is inverted (so it opens at the latest message)
-const buildChatItems = (comments: Comments[]): ChatListItem[] => {
-  const sorted = [...comments].sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-  );
-  const items: ChatListItem[] = [];
-  let currentDay = "";
+type ChatItem =
+  | { type: "day"; key: string; label: string }
+  | { type: "bubble"; key: string; bubble: Bubble; showName: boolean; showTime: boolean };
 
-  sorted.forEach((comment) => {
-    const date = new Date(comment.date);
-    const dayKey = startOfDay(date).toISOString();
-    if (dayKey !== currentDay) {
-      currentDay = dayKey;
-      items.push({ type: "day", key: `day-${dayKey}`, label: getDayLabel(date) });
+// Oldest-first bubbles with a day label before each new day, returned newest-first
+// because the list is inverted (so it opens at the latest message)
+const buildItems = (bubbles: Bubble[]): ChatItem[] => {
+  const items: ChatItem[] = [];
+  bubbles.forEach((bubble, i) => {
+    const prev = bubbles[i - 1];
+    const next = bubbles[i + 1];
+    if (!prev || !isSameDay(prev.date, bubble.date)) {
+      items.push({
+        type: "day",
+        key: `day-${bubble.key}`,
+        label: `${formatBubbleDay(bubble.date)} ${formatTime(bubble.date)}`,
+      });
     }
-    items.push({ type: "comment", key: comment.id, comment });
+    const startsGroup =
+      !prev ||
+      prev.author !== bubble.author ||
+      bubble.date - prev.date > GROUP_GAP_MS ||
+      !isSameDay(prev.date, bubble.date);
+    const endsGroup =
+      !next ||
+      next.author !== bubble.author ||
+      next.date - bubble.date > GROUP_GAP_MS ||
+      !isSameDay(next.date, bubble.date);
+    items.push({
+      type: "bubble",
+      key: bubble.key,
+      bubble,
+      showName: !bubble.mine && startsGroup,
+      showTime: endsGroup || bubble.status !== "sent",
+    });
   });
-
   return items.reverse();
 };
 
@@ -69,23 +83,22 @@ export default function InboxDetail() {
   const { userData, loggedInUser } = useAuth();
   const route = useRoute<InboxRouteProp<"InboxDetail">>();
   const navigation = useNavigation();
-  const [newComment, setNewComment] = useState("");
-  const [comments, setComments] = useState<Comments[]>([]);
-  const [sending, setSending] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const { width, height } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
-  const styles = getStyles(width, height);
+  const [comments, setComments] = useState<Comments[]>([]);
+  // Messages typed here that the server hasn't returned yet
+  const [pending, setPending] = useState<Bubble[]>([]);
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(true);
+  const pendingId = useRef(0);
 
   const messageId = route.params.queryId;
+  const myName = loggedInUser?.fullName;
 
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     if (!userData?.authToken || !userData?.accountId || !messageId) {
       setLoading(false);
       return;
     }
-
     try {
       const response = await loadComments(
         userData.authToken,
@@ -94,123 +107,184 @@ export default function InboxDetail() {
       );
       if (response) {
         setComments(response);
+        const latest = Math.max(
+          0,
+          ...response.map((c) => new Date(c.date).getTime())
+        );
+        if (latest) markThreadSeen(userData.accountId, messageId, latest);
       }
     } catch (error) {
       console.error("Failed to fetch comments:", error);
     } finally {
       setLoading(false);
     }
-  };
-
-  const confirmDelete = (commentId: string) =>
-    Alert.alert(
-      "Delete Comment",
-      "Are you sure you want to delete this comment?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          onPress: () => handleDelete(commentId),
-          style: "destructive",
-        },
-      ]
-    );
-
-  const handleSend = async () => {
-    if (!newComment.trim()) return;
-
-    if (!userData?.authToken || !userData?.accountId) return;
-
-    setSending(true);
-
-    const success = await sendComment(
-      userData.authToken,
-      userData.accountId,
-      messageId,
-      newComment.trim(),
-      loggedInUser?.userId || ""
-    );
-
-    if (success) {
-      setNewComment("");
-      fetchComments();
-    } else {
-      Alert.alert("Error", "Failed to send comment.");
-    }
-
-    setSending(false);
-  };
-
-  const handleDelete = async (commentId: string) => {
-    if (!userData?.authToken || !userData?.accountId) return;
-
-    try {
-      const response = await deleteComment(
-        userData.authToken,
-        userData.accountId,
-        commentId
-      );
-
-      if (response) {
-        setComments((prev) => prev.filter((c) => c.id !== commentId));
-      } else {
-        Alert.alert("Error", "Failed to delete comment.");
-      }
-    } catch (error) {
-      console.error("Delete error:", error);
-      Alert.alert("Error", "Something went wrong.");
-    }
-  };
-
-  useEffect(() => {
-    fetchComments();
   }, [userData?.authToken, userData?.accountId, messageId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchComments();
+      const timer = setInterval(fetchComments, POLL_MS);
+      return () => clearInterval(timer);
+    }, [fetchComments])
+  );
 
   useLayoutEffect(() => {
     navigation.setOptions({ title: route.params.title });
   }, [navigation, route.params.title]);
 
+  const deliver = async (bubble: Bubble) => {
+    if (!userData?.authToken || !userData?.accountId) return;
+    setPending((prev) =>
+      prev.map((p) => (p.key === bubble.key ? { ...p, status: "sending" } : p))
+    );
+
+    const ok = await sendComment(
+      userData.authToken,
+      userData.accountId,
+      messageId,
+      bubble.text,
+      loggedInUser?.userId || ""
+    );
+
+    if (ok) {
+      await fetchComments();
+      setPending((prev) => prev.filter((p) => p.key !== bubble.key));
+    } else {
+      setPending((prev) =>
+        prev.map((p) => (p.key === bubble.key ? { ...p, status: "failed" } : p))
+      );
+    }
+  };
+
+  const handleSend = () => {
+    const body = text.trim();
+    if (!body) return;
+    pendingId.current += 1;
+    const bubble: Bubble = {
+      key: `pending-${pendingId.current}`,
+      text: body,
+      date: Date.now(),
+      author: myName ?? "",
+      mine: true,
+      status: "sending",
+    };
+    setPending((prev) => [...prev, bubble]);
+    setText("");
+    deliver(bubble);
+  };
+
+  const handleDelete = async (commentId: string) => {
+    if (!userData?.authToken || !userData?.accountId) return;
+    const ok = await deleteComment(
+      userData.authToken,
+      userData.accountId,
+      commentId
+    );
+    if (ok) {
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+    } else {
+      Alert.alert("Couldn't delete", "Please try again.");
+    }
+  };
+
+  const onLongPress = (bubble: Bubble) => {
+    if (bubble.status === "failed") {
+      Alert.alert("Not delivered", bubble.text, [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () =>
+            setPending((prev) => prev.filter((p) => p.key !== bubble.key)),
+        },
+        { text: "Try Again", onPress: () => deliver(bubble) },
+      ]);
+      return;
+    }
+    if (bubble.mine && bubble.commentId) {
+      const id = bubble.commentId;
+      Alert.alert("Delete message?", "This removes it for everyone.", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: () => handleDelete(id) },
+      ]);
+    }
+  };
+
   if (!userData) {
     return null;
   }
 
-  const canSend = newComment.trim().length > 0 && !sending;
-  const chatItems = buildChatItems(comments);
+  const bubbles: Bubble[] = [
+    ...[...comments]
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .map(
+        (c): Bubble => ({
+          key: c.id,
+          text: c.comment,
+          date: new Date(c.date).getTime(),
+          author: c.author,
+          mine: isOwnComment(c, myName),
+          status: "sent",
+          commentId: c.id,
+        })
+      ),
+    ...pending,
+  ];
+  const items = buildItems(bubbles);
 
-  const renderChatItem = ({ item }: { item: ChatListItem }) => {
+  const renderItem = ({ item }: { item: ChatItem }) => {
     if (item.type === "day") {
-      return (
-        <View style={styles.dayHeader}>
-          <Text style={styles.dayHeaderText}>{item.label}</Text>
-        </View>
-      );
+      return <Text style={styles.dayLabel}>{item.label}</Text>;
     }
 
-    const { comment } = item;
-    const isSent = comment.author === loggedInUser?.fullName;
+    const { bubble, showName, showTime } = item;
+    const failed = bubble.status === "failed";
 
     return (
-      <Pressable
-        onLongPress={isSent ? () => confirmDelete(comment.id) : undefined}
-        delayLongPress={400}
-        style={({ pressed }) => [
-          styles.comment,
-          isSent ? styles.sentComment : styles.receivedComment,
-          pressed && isSent && styles.commentPressed,
-        ]}
-        accessibilityHint={isSent ? "Long press to delete" : undefined}
-      >
-        {!isSent && <Text style={styles.author}>{comment.author}</Text>}
-        <Text style={[styles.text, isSent && styles.sentText]}>
-          {comment.comment}
-        </Text>
-        <Text style={[styles.date, isSent && styles.sentDate]}>
-          {new Date(comment.date).toLocaleTimeString("en-AU", {
-            hour: "numeric",
-            minute: "2-digit",
-          })}
-        </Text>
-      </Pressable>
+      <View style={[styles.bubbleWrap, bubble.mine ? styles.wrapMine : styles.wrapTheirs]}>
+        {showName && <Text style={styles.author}>{bubble.author}</Text>}
+        <View style={styles.bubbleRow}>
+          <Pressable
+            onPress={failed ? () => onLongPress(bubble) : undefined}
+            onLongPress={() => onLongPress(bubble)}
+            delayLongPress={350}
+            style={({ pressed }) => [
+              styles.bubble,
+              bubble.mine ? styles.bubbleMine : styles.bubbleTheirs,
+              bubble.status === "sending" && styles.bubbleSending,
+              pressed && styles.bubblePressed,
+            ]}
+            accessibilityHint={
+              failed
+                ? "Not delivered. Double tap for options"
+                : bubble.mine
+                ? "Long press to delete"
+                : undefined
+            }
+          >
+            <Text style={[styles.text, bubble.mine && styles.textMine]}>
+              {bubble.text}
+            </Text>
+          </Pressable>
+          {failed && (
+            <Ionicons
+              name="alert-circle"
+              size={20}
+              color="#DC2626"
+              style={styles.failedIcon}
+            />
+          )}
+        </View>
+        {showTime && (
+          <Text style={[styles.meta, failed && styles.metaFailed]}>
+            {bubble.status === "sending"
+              ? "Sending…"
+              : failed
+              ? "Not delivered"
+              : formatTime(bubble.date)}
+          </Text>
+        )}
+      </View>
     );
   };
 
@@ -224,174 +298,117 @@ export default function InboxDetail() {
         <View style={styles.centerState}>
           <ActivityIndicator color={colors.primary} />
         </View>
-      ) : comments.length === 0 ? (
+      ) : bubbles.length === 0 ? (
         // Kept outside the FlatList: an inverted list renders its empty
         // component upside down
         <View style={styles.centerState}>
           <Ionicons name="chatbubbles-outline" size={40} color="#9CA3AF" />
-          <Text style={styles.emptyTitle}>No messages yet</Text>
-          <Text style={styles.emptyText}>
-            Write a comment below to start the conversation.
-          </Text>
+          <Text style={styles.emptyText}>No messages yet</Text>
         </View>
       ) : (
         <FlatList
-          data={chatItems}
+          data={items}
           inverted
           keyExtractor={(item) => item.key}
-          contentContainerStyle={styles.commentList}
-          renderItem={renderChatItem}
+          contentContainerStyle={styles.list}
+          renderItem={renderItem}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
         />
       )}
 
-      <View
-        style={[
-          styles.inputContainer,
-          { paddingBottom: Math.max(insets.bottom, width * 0.02) },
-        ]}
-      >
-        <TextInput
-          style={styles.input}
-          placeholder="Write a comment..."
-          placeholderTextColor="#9CA3AF"
-          value={newComment}
-          onChangeText={setNewComment}
-          multiline
-        />
-        <TouchableOpacity
-          style={[styles.button, !canSend && styles.buttonDisabled]}
-          onPress={handleSend}
-          disabled={!canSend}
-          accessibilityRole="button"
-          accessibilityLabel="Send comment"
-        >
-          {sending ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <Ionicons name="send" size={20} color="#fff" />
-          )}
-        </TouchableOpacity>
-      </View>
+      <MessageComposer value={text} onChangeText={setText} onSend={handleSend} />
     </KeyboardAvoidingView>
   );
 }
 
-const getStyles = (width: number, height: number) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: "#F3F4F6",
-    },
-    commentList: {
-      padding: width * 0.03,
-    },
-    centerState: {
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
-      paddingHorizontal: width * 0.1,
-    },
-    emptyTitle: {
-      fontSize: RFPercentage(2.2),
-      fontWeight: "bold",
-      color: colors.primary,
-      marginTop: height * 0.01,
-    },
-    emptyText: {
-      fontSize: RFPercentage(1.8),
-      color: "#6B7280",
-      textAlign: "center",
-      marginTop: 4,
-    },
-    dayHeader: {
-      alignSelf: "center",
-      backgroundColor: "#E5E7EB",
-      borderRadius: 12,
-      paddingHorizontal: 12,
-      paddingVertical: 4,
-      marginVertical: height * 0.01,
-    },
-    dayHeaderText: {
-      fontSize: RFPercentage(1.6),
-      fontWeight: "600",
-      color: "#4B5563",
-    },
-    comment: {
-      maxWidth: "80%",
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 16,
-      marginBottom: height * 0.01,
-    },
-    sentComment: {
-      alignSelf: "flex-end",
-      backgroundColor: colors.primary,
-      borderBottomRightRadius: 4,
-    },
-    receivedComment: {
-      alignSelf: "flex-start",
-      backgroundColor: "#fff",
-      borderWidth: 1,
-      borderColor: "#E5E7EB",
-      borderBottomLeftRadius: 4,
-    },
-    commentPressed: {
-      opacity: 0.7,
-    },
-    author: {
-      fontWeight: "bold",
-      fontSize: RFPercentage(1.8),
-      color: colors.primary,
-      marginBottom: 2,
-    },
-    text: {
-      fontSize: RFPercentage(2),
-      color: "#111827",
-    },
-    sentText: {
-      color: "#fff",
-    },
-    date: {
-      fontSize: RFPercentage(1.5),
-      color: "#6B7280",
-      alignSelf: "flex-end",
-      marginTop: 4,
-    },
-    sentDate: {
-      color: "#C9D3E6",
-    },
-    inputContainer: {
-      flexDirection: "row",
-      alignItems: "flex-end",
-      borderTopWidth: 1,
-      borderColor: "#ccc",
-      paddingTop: width * 0.02,
-      paddingHorizontal: width * 0.02,
-      backgroundColor: "#f9f9f9",
-    },
-    input: {
-      flex: 1,
-      maxHeight: height * 0.15,
-      borderWidth: 1,
-      borderColor: "#ccc",
-      borderRadius: 20,
-      paddingHorizontal: 14,
-      paddingTop: 10,
-      paddingBottom: 10,
-      fontSize: RFPercentage(2),
-      backgroundColor: "#fff",
-      marginRight: width * 0.02,
-    },
-    button: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: colors.primary,
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    buttonDisabled: {
-      opacity: 0.4,
-    },
-  });
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#F5F6F8",
+  },
+  list: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  centerState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emptyText: {
+    fontSize: RFPercentage(1.9),
+    color: "#6B7280",
+    marginTop: 8,
+  },
+  dayLabel: {
+    alignSelf: "center",
+    fontSize: RFPercentage(1.5),
+    fontWeight: "600",
+    color: "#6B7280",
+    marginTop: 14,
+    marginBottom: 6,
+  },
+  bubbleWrap: {
+    maxWidth: "80%",
+    marginBottom: 3,
+  },
+  wrapMine: {
+    alignSelf: "flex-end",
+    alignItems: "flex-end",
+  },
+  wrapTheirs: {
+    alignSelf: "flex-start",
+    alignItems: "flex-start",
+  },
+  author: {
+    fontSize: RFPercentage(1.5),
+    color: "#6B7280",
+    marginLeft: 12,
+    marginTop: 8,
+    marginBottom: 2,
+  },
+  bubbleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  bubble: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 18,
+  },
+  bubbleMine: {
+    backgroundColor: colors.primary,
+  },
+  bubbleTheirs: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  bubbleSending: {
+    opacity: 0.6,
+  },
+  bubblePressed: {
+    opacity: 0.7,
+  },
+  failedIcon: {
+    marginLeft: 6,
+  },
+  text: {
+    fontSize: RFPercentage(2),
+    color: "#111827",
+  },
+  textMine: {
+    color: "#fff",
+  },
+  meta: {
+    fontSize: RFPercentage(1.4),
+    color: "#6B7280",
+    marginTop: 2,
+    marginHorizontal: 4,
+    marginBottom: 6,
+  },
+  metaFailed: {
+    color: "#DC2626",
+  },
+});
