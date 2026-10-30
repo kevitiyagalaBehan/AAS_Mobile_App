@@ -12,12 +12,19 @@ import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { RFPercentage } from "react-native-responsive-fontsize";
 import { Ionicons } from "@expo/vector-icons";
 import Pdf from "react-native-pdf";
+import Constants from "expo-constants";
 import * as Sharing from "expo-sharing";
 import { Base64 } from "js-base64";
 import { useAuth } from "../context/AuthContext";
 import { getDocumentViewUrl } from "../utils/pimsApi";
 import { RootStackParamList } from "../navigation/types";
 import { colors } from "../theme/colors";
+
+const docBaseUrl = Constants.expoConfig?.extra?.docBaseUrl as string;
+
+// The CRM needs the user's token to serve eSigning files; never send it to other hosts
+const isDocServerUrl = (url: string) =>
+  !!docBaseUrl && url.toLowerCase().startsWith(`${docBaseUrl.replace(/\/+$/, "")}/`.toLowerCase());
 
 // Saved under the document's own name so a shared file keeps it; each open overwrites it
 const toCacheFileName = (title: string) => {
@@ -135,7 +142,15 @@ export default function PdfViewerScreen() {
           ) : (
             <Pdf
               key={attempt}
-              source={{ uri, cache: false, cacheFileName: toCacheFileName(title) }}
+              source={{
+                uri,
+                cache: false,
+                cacheFileName: toCacheFileName(title),
+                headers:
+                  userData?.authToken && isDocServerUrl(uri)
+                    ? { Authorization: `Bearer ${userData.authToken}` }
+                    : undefined,
+              }}
               trustAllCerts={false}
               style={styles.pdf}
               renderActivityIndicator={() => (

@@ -109,7 +109,7 @@ export default function ESigning() {
 
   // PDFs open in the in-app viewer; signing itself stays in the browser above
   const handleView = (documentPath: string, title: string) => {
-    const url = `${docBaseUrl}/${documentPath}`;
+    const url = `${docBaseUrl}${documentPath}`;
     if (/\.pdf$/i.test(documentPath.split("?")[0])) {
       navigation.navigate("PdfViewer", { url, title });
     } else {
