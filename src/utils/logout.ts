@@ -1,10 +1,9 @@
-import { NavigationProp } from "@react-navigation/native";
 import { Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getLoginRoute } from "./pinStorage";
+import { navigationRef } from "../navigation/RootNavigation";
 
 export const handleLogout = async (
-  navigation: NavigationProp<any>,
   showConfirmation: boolean = true,
   authContextReset?: () => void
 ) => {
@@ -14,33 +13,35 @@ export const handleLogout = async (
       {
         text: "Logout",
         onPress: async () => {
-          await performLogout(navigation, authContextReset);
+          await performLogout(authContextReset);
         },
       },
     ]);
   } else {
-    await performLogout(navigation, authContextReset);
+    await performLogout(authContextReset);
   }
 };
 
-const performLogout = async (
-  navigation: NavigationProp<any>,
-  authContextReset?: () => void
-) => {
+const performLogout = async (authContextReset?: () => void) => {
   try {
+    // The PIN registration lives in SecureStore, so it survives the AsyncStorage clear below.
+    const loginRoute = await getLoginRoute();
+
+    // Reset the root stack: a drawer or tab navigator can't handle a reset to
+    // the login screens, and silently ignores it. Leave the app before clearing
+    // the session so no screen renders without user data.
+    if (navigationRef.isReady()) {
+      navigationRef.reset({
+        index: 0,
+        routes: [{ name: loginRoute }],
+      });
+    }
+
     await AsyncStorage.clear();
 
     if (authContextReset) {
       authContextReset();
     }
-
-    // The PIN registration lives in SecureStore, so it survives the AsyncStorage clear above.
-    const loginRoute = await getLoginRoute();
-
-    navigation.reset({
-      index: 0,
-      routes: [{ name: loginRoute }],
-    });
   } catch (error) {
     console.error("Logout failed:", error);
   }
