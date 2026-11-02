@@ -27,6 +27,19 @@ import { formatShortDate } from "../src/utils/format";
 
 const docBaseUrl = Constants.expoConfig?.extra?.docBaseUrl as string;
 
+// The API gives Windows-style paths ("\CPA_ROA\Esigning\Source\My file.pdf"):
+// use forward slashes, join with one "/", and encode spaces without double-encoding
+const toDocumentUrl = (documentPath: string) => {
+  const path = documentPath.replace(/\\/g, "/").replace(/^~?\/*/, "");
+  let decoded = path;
+  try {
+    decoded = decodeURI(path);
+  } catch {
+    // a stray "%" that isn't an escape; encode the path as it is
+  }
+  return `${docBaseUrl.replace(/\/+$/, "")}/${encodeURI(decoded)}`;
+};
+
 type Tab = "toSign" | "all";
 
 const needsSigning = (doc: EsignDocument) =>
@@ -109,7 +122,7 @@ export default function ESigning() {
 
   // PDFs open in the in-app viewer; signing itself stays in the browser above
   const handleView = (documentPath: string, title: string) => {
-    const url = `${docBaseUrl}${documentPath}`;
+    const url = toDocumentUrl(documentPath);
     if (/\.pdf$/i.test(documentPath.split("?")[0])) {
       navigation.navigate("PdfViewer", { url, title });
     } else {
