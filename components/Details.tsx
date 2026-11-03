@@ -1,10 +1,4 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  useWindowDimensions,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../src/context/AuthContext";
 import {
@@ -17,22 +11,31 @@ import {
   RelationshipResponse,
 } from "../src/navigation/types";
 import { RFPercentage } from "react-native-responsive-fontsize";
+import { formatShortDate } from "../src/utils/format";
+import { avatarFor } from "../src/utils/messageFormat";
 import { colors } from "../src/theme/colors";
+import Card from "./Card";
+
+type Tab = "accountDetails" | "relationships";
+
+const TABS: { key: Tab; label: string }[] = [
+  { key: "accountDetails", label: "Account details" },
+  { key: "relationships", label: "Relationships" },
+];
 
 export default function Details({ refreshTrigger }: Props) {
   const { userData } = useAuth();
-  const { width, height } = useWindowDimensions();
   const [detailsLoading, setDetailsLoading] = useState(true);
   const [relationshipsLoading, setRelationshipsLoading] = useState(true);
   const [details, setDetails] = useState<ClientAccountDetails[] | null>(null);
   const [relationships, setRelationships] = useState<
     RelationshipResponse[] | null
   >(null);
-  const [selectedTab, setSelectedTab] = useState<
-    "accountDetails" | "relationships"
-  >("accountDetails");
-  const [error, setError] = useState<string | null>(null);
-  const styles = getStyles(width, height);
+  const [selectedTab, setSelectedTab] = useState<Tab>("accountDetails");
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [relationshipsError, setRelationshipsError] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -42,6 +45,7 @@ export default function Details({ refreshTrigger }: Props) {
       }
 
       setDetailsLoading(true);
+      setDetailsError(null);
       try {
         const data = await getClientAccountDetails(
           userData.authToken,
@@ -49,7 +53,7 @@ export default function Details({ refreshTrigger }: Props) {
         );
         setDetails(data);
       } catch {
-        setError("Failed to load account details");
+        setDetailsError("Failed to load account details");
       } finally {
         setDetailsLoading(false);
       }
@@ -66,6 +70,7 @@ export default function Details({ refreshTrigger }: Props) {
       }
 
       setRelationshipsLoading(true);
+      setRelationshipsError(null);
       try {
         const data = await getRelationships(
           userData.authToken,
@@ -73,7 +78,7 @@ export default function Details({ refreshTrigger }: Props) {
         );
         setRelationships(data);
       } catch {
-        setError("Failed to load relationships");
+        setRelationshipsError("Failed to load relationships");
       } finally {
         setRelationshipsLoading(false);
       }
@@ -82,216 +87,242 @@ export default function Details({ refreshTrigger }: Props) {
     fetchRelationships();
   }, [userData?.authToken, userData?.accountId, refreshTrigger]);
 
-  if (detailsLoading || relationshipsLoading) {
-    return <Text style={styles.loader}>Loading...</Text>;
-  }
+  const renderAccountDetails = () => {
+    if (detailsLoading) return <Text style={styles.muted}>Loading...</Text>;
+    if (detailsError) return <Text style={styles.muted}>{detailsError}</Text>;
 
-  if (error) {
-    return <Text style={styles.errorText}>{error}</Text>;
-  }
+    const account = details?.[0];
+    if (!account) {
+      return <Text style={styles.muted}>No account details available</Text>;
+    }
 
-  if (!details || details.length === 0) {
-    return <Text style={styles.errorText}>No account details available</Text>;
-  }
+    const rows = [
+      { label: "Portfolio Code", value: account.superFundCode },
+      { label: "Account Name", value: account.superFundName },
+      { label: "Legal Type", value: account.legalType },
+      { label: "Trustee(s)", value: account.trusteeName },
+      { label: "Job Type", value: account.jobType },
+      { label: "ABN", value: account.fundABN },
+      { label: "TFN", value: account.fundTFN || "<<Recorded>>" },
+      {
+        label: "SOA Date",
+        value: account.soaDate ? formatShortDate(account.soaDate) : null,
+      },
+      {
+        label: "Fund Start Date",
+        value: account.fundStartDate
+          ? formatShortDate(account.fundStartDate)
+          : null,
+      },
+      { label: "Adviser", value: account.adviserName },
+    ];
 
-  if (!relationships || relationships.length === 0) {
     return (
-      <Text style={styles.errorText}>No relationships data available</Text>
+      <Card>
+        {rows.map(({ label, value }, index) => (
+          <View key={label} style={[styles.row, index > 0 && styles.divider]}>
+            <Text style={styles.label}>{label}</Text>
+            <Text style={styles.value}>{value || "—"}</Text>
+          </View>
+        ))}
+      </Card>
     );
-  }
+  };
 
-  const account = details[0];
+  const renderRelationships = () => {
+    if (relationshipsLoading) {
+      return <Text style={styles.muted}>Loading...</Text>;
+    }
+    if (relationshipsError) {
+      return <Text style={styles.muted}>{relationshipsError}</Text>;
+    }
+    if (!relationships || relationships.length === 0) {
+      return <Text style={styles.muted}>No relationships available</Text>;
+    }
 
-  const rows = [
-    { label: "Portfolio Code", value: account.superFundCode },
-    { label: "Account Name", value: account.superFundName },
-    { label: "Legal Type", value: account.legalType },
-    { label: "Trustee(s)", value: account.trusteeName },
-    { label: "Job Type", value: account.jobType },
-    { label: "ABN", value: account.fundABN },
-    { label: "TFN", value: account.fundTFN || "<<Recorded>>" },
-    {
-      label: "SOA Date",
-      value: new Date(account.soaDate).toLocaleDateString("en-AU", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }),
-    },
-    {
-      label: "Fund Start Date",
-      value: new Date(account.fundStartDate).toLocaleDateString("en-AU", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }),
-    },
-    { label: "Adviser", value: account.adviserName },
-  ];
+    return (
+      <Card style={styles.listCard}>
+        {relationships.map((person, index) => {
+          const avatar = avatarFor(person.accountName || "?");
+          return (
+            <View
+              key={person.id}
+              style={[styles.personRow, index > 0 && styles.divider]}
+            >
+              <View style={[styles.avatar, { backgroundColor: avatar.color }]}>
+                <Text
+                  style={styles.avatarText}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  {avatar.initials}
+                </Text>
+              </View>
+              <View style={styles.personText}>
+                <Text style={styles.personName}>{person.accountName}</Text>
+                {!!person.email && (
+                  <Text style={styles.personContact} numberOfLines={1}>
+                    {person.email}
+                  </Text>
+                )}
+                {!!person.mobile && (
+                  <Text style={styles.personContact} numberOfLines={1}>
+                    {person.mobile}
+                  </Text>
+                )}
+                <View style={styles.roles}>
+                  {person.relationships.map((r, i) => (
+                    <View key={`${r.relationship}-${i}`} style={styles.roleChip}>
+                      <Text style={styles.roleText}>{r.relationship}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </View>
+          );
+        })}
+      </Card>
+    );
+  };
 
   return (
     <View style={styles.container}>
-      <View style={styles.border}>
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              selectedTab === "accountDetails" && styles.activeTab,
-            ]}
-            onPress={() => setSelectedTab("accountDetails")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                selectedTab === "accountDetails" && styles.activeTabText,
-              ]}
+      <View style={styles.segmented} accessibilityRole="tablist">
+        {TABS.map(({ key, label }) => {
+          const selected = selectedTab === key;
+          return (
+            <TouchableOpacity
+              key={key}
+              style={[styles.segment, selected && styles.segmentSelected]}
+              onPress={() => setSelectedTab(key)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected }}
             >
-              Account Details
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              selectedTab === "relationships" && styles.activeTab,
-            ]}
-            onPress={() => setSelectedTab("relationships")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                selectedTab === "relationships" && styles.activeTabText,
-              ]}
-            >
-              Relationships
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {selectedTab === "accountDetails" && (
-          <View>
-            {rows.map((item, index) => (
-              <View key={index} style={styles.row}>
-                <View style={styles.labelCell}>
-                  <Text style={styles.labelText}>{item.label}</Text>
-                </View>
-                <View
-                  style={[
-                    styles.valueCell,
-                    { backgroundColor: index % 2 === 0 ? "#eee" : "#fff" },
-                  ]}
-                >
-                  <Text style={styles.valueText}>{item.value}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {selectedTab === "relationships" && (
-          <View>
-            {relationships && relationships.length > 0 ? (
-              relationships.map((relGroup, i) => (
-                <View key={i} style={styles.row}>
-                  <View style={styles.labelCell}>
-                    <Text style={styles.labelText}>{relGroup.accountName}</Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.valueCell,
-                      { backgroundColor: i % 2 === 0 ? "#eee" : "#fff" },
-                    ]}
-                  >
-                    <Text style={styles.valueText}>
-                      {relGroup.relationships
-                        .map((r) => r.relationship)
-                        .join(", ")}
-                    </Text>
-                  </View>
-                </View>
-              ))
-            ) : (
-              <Text style={styles.valueText}>No relationships available</Text>
-            )}
-          </View>
-        )}
+              <Text
+                style={[styles.segmentText, selected && styles.segmentTextSelected]}
+              >
+                {label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
+
+      {selectedTab === "accountDetails"
+        ? renderAccountDetails()
+        : renderRelationships()}
     </View>
   );
 }
 
-const getStyles = (width: number, height: number) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      marginVertical: 12,
-      borderRadius: 16,
-      backgroundColor: "#fff",
-    },
-    border: {
-      borderWidth: 1,
-      borderColor: "#E5E7EB",
-      borderRadius: 16,
-      padding: 16,
-      backgroundColor: "#fff",
-    },
-    row: {
-      flexDirection: "row",
-      borderWidth: 1,
-      borderColor: "#ccc",
-    },
-    labelCell: {
-      flex: 1,
-      backgroundColor: colors.primary,
-      justifyContent: "center",
-      padding: 10,
-    },
-    valueCell: {
-      flex: 2,
-      justifyContent: "center",
-      padding: 10,
-      backgroundColor: "#fff",
-    },
-    labelText: {
-      color: "#fff",
-      fontWeight: "bold",
-      fontSize: RFPercentage(2),
-    },
-    valueText: {
-      color: "#000",
-      fontSize: RFPercentage(2),
-    },
-    tabContainer: {
-      flexDirection: "row",
-    },
-    tab: {
-      flex: 1,
-      padding: 12,
-      backgroundColor: "#fff",
-      alignItems: "center",
-    },
-    activeTab: {
-      backgroundColor: colors.primary,
-    },
-    tabText: {
-      fontSize: RFPercentage(2),
-      fontWeight: "bold",
-      color: colors.primary,
-    },
-    activeTabText: {
-      color: "#fff",
-    },
-    errorText: {
-      color: "red",
-      textAlign: "center",
-      fontSize: RFPercentage(2),
-      fontWeight: "bold",
-      marginTop: height * 0.2,
-    },
-    loader: {
-      fontWeight: "bold",
-      color: colors.primary,
-      fontSize: RFPercentage(2.6),
-      marginTop: height * 0.021,
-      marginLeft: height * 0.013,
-    },
-  });
+const AVATAR_SIZE = 40;
+
+const styles = StyleSheet.create({
+  container: {
+    marginTop: 4,
+  },
+  segmented: {
+    flexDirection: "row",
+    backgroundColor: "#E2E6EE",
+    borderRadius: 12,
+    padding: 4,
+  },
+  segment: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 9,
+    alignItems: "center",
+  },
+  segmentSelected: {
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
+  },
+  segmentText: {
+    fontSize: RFPercentage(1.9),
+    fontWeight: "600",
+    color: "#4B5563",
+  },
+  segmentTextSelected: {
+    color: colors.primary,
+    fontWeight: "bold",
+  },
+  muted: {
+    fontSize: RFPercentage(1.9),
+    color: "#6B7280",
+    textAlign: "center",
+    marginTop: 24,
+  },
+  row: {
+    paddingVertical: 10,
+  },
+  divider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#E5E7EB",
+  },
+  label: {
+    fontSize: RFPercentage(1.7),
+    color: "#6B7280",
+  },
+  value: {
+    fontSize: RFPercentage(2),
+    fontWeight: "600",
+    color: "#111827",
+    marginTop: 2,
+  },
+  listCard: {
+    paddingVertical: 4,
+  },
+  personRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingVertical: 12,
+  },
+  avatar: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  avatarText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: RFPercentage(1.8),
+  },
+  personText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  personName: {
+    fontSize: RFPercentage(2),
+    fontWeight: "bold",
+    color: "#111827",
+  },
+  personContact: {
+    fontSize: RFPercentage(1.7),
+    color: "#4B5563",
+    marginTop: 1,
+  },
+  roles: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 6,
+  },
+  roleChip: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  roleText: {
+    fontSize: RFPercentage(1.6),
+    fontWeight: "600",
+    color: colors.primary,
+  },
+});

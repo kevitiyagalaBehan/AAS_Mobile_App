@@ -20,7 +20,11 @@ export const ESignProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [documents, setDocuments] = useState<EsignDocument[]>([]);
 
   const fetchDocuments = async () => {
-    if (!userData?.authToken || !userData?.accountId) return;
+    if (!userData?.authToken || !userData?.accountId) {
+      // Logged out: don't carry this user's "to sign" count into the next login
+      setDocuments([]);
+      return;
+    }
 
     try {
       const data = await getEsignDocuments(userData.authToken, userData.accountId);

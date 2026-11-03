@@ -15,7 +15,7 @@ import UpdateModal from "./components/UpdateModal";
 import { useEffect, useState } from "react";
 import { getLoginRoute } from "./src/utils/pinStorage";
 import * as Notifications from "expo-notifications";
-import { navigationRef } from "./src/navigation/RootNavigation";
+import { navigationRef, inboxRoute } from "./src/navigation/RootNavigation";
 import {
   InboxNotificationActionData,
   RootStackParamList,
@@ -136,23 +136,17 @@ function AppInner() {
           return;
         }
 
-        navigationRef.navigate(userType, {
-          screen: "MainTabs",
-          params: {
-            screen: "Inbox",
-            params: {
-              screen:
-                data.action === "NEW_MESSAGE" ? "InboxList" : "InboxDetail",
-              params: {
-                queryId: actionData.MessageId,
-                title:
-                  data.action === "NEW_MESSAGE"
-                    ? "AAS New Message"
-                    : "AAS Reply",
-              },
-            },
-          },
-        });
+        navigationRef.navigate(
+          userType,
+          inboxRoute(
+            data.action === "NEW_MESSAGE" ? "InboxList" : "InboxDetail",
+            {
+              queryId: actionData.MessageId,
+              title:
+                data.action === "NEW_MESSAGE" ? "AAS New Message" : "AAS Reply",
+            }
+          ) as any
+        );
       });
 
     return () => {

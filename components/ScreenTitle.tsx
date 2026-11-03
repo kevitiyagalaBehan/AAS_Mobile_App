@@ -25,13 +25,15 @@ export default function ScreenTitle({
   subtitle,
 }: ScreenTitleProps) {
   const navigation = useNavigation<any>();
-  const { currentAccountName } = useAuth();
+  const { currentAccountName, userData } = useAuth();
   const { width, height } = useWindowDimensions();
   const styles = getStyles(width, height);
 
   // Back always lands on the Home tab, not whichever tab was last open
   const goHome = () =>
-    navigation.navigate("MainTabs", { screen: "HomeOther" });
+    navigation.navigate("MainTabs", {
+      screen: userData?.accountType === "Family Group" ? "HomeFamily" : "HomeOther",
+    });
 
   return (
     <View style={styles.container}>

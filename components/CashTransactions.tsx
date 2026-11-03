@@ -17,22 +17,14 @@ import { RFPercentage } from "react-native-responsive-fontsize";
 import { useAuth } from "../src/context/AuthContext";
 import { getCashTransactions } from "../src/utils/pimsApi";
 import { CashTransactions } from "../src/navigation/types";
-import { formatCurrency, formatShortDate } from "../src/utils/format";
+import { formatCurrency, formatShortDate, toApiDate } from "../src/utils/format";
 import { colors } from "../src/theme/colors";
 import Card from "./Card";
 import DetailModal from "./DetailModal";
 
 type PickerTarget = "from" | "to";
 
-// Local calendar date as YYYY-MM-DD. toISOString() would use UTC, which in
-// Australia is still the previous day until mid-morning.
-const toApiDate = (date: Date) => {
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${date.getFullYear()}-${month}-${day}`;
-};
-
-const cleanDescription = (description?: string) =>
+export const cleanDescription = (description?: string) =>
   description?.includes("Closing Balance")
     ? description.replace("Closing Balance", "").trim()
     : description ?? "";
@@ -58,9 +50,9 @@ export default function Transactions({
     null
   );
   const [startDate, setStartDate] = useState(() => {
-    const oneMonthAgo = new Date();
-    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-    return oneMonthAgo;
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    return oneYearAgo;
   });
   const [endDate, setEndDate] = useState(new Date());
   const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);

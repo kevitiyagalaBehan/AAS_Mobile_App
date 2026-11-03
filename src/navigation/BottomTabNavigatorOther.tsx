@@ -1,14 +1,13 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
-import { getFocusedRouteNameFromRoute } from "@react-navigation/native";
 import HomeScreenOther from "../screens/HomeScreenOther";
 import ESigningScreen from "../screens/ESigningScreen";
 import PortfolioScreen from "../screens/PortfolioScreen";
 import SuperScreen from "../screens/SuperScreen";
+import DocumentScreen from "../screens/DocumentScreen";
 import { BottomTabParamListOther } from "./types";
 import { RFPercentage } from "react-native-responsive-fontsize";
-import InboxStackNavigator from "./InboxStackNavigator";
 import { useWindowDimensions, View, Text } from "react-native";
 import { useESign } from "../context/ESignContext";
 import { useHasSuperData } from "../../hooks/useHasSuperData";
@@ -73,27 +72,16 @@ export default function BottomTabOther() {
           }}
         />
       )}
+      {/* Messages opens from the envelope button in the Home header */}
       <Tab.Screen
-        name="Inbox"
-        component={InboxStackNavigator}
-        options={({ route }) => {
-          const routeName = getFocusedRouteNameFromRoute(route) ?? "InboxList";
-
-          return {
-            headerShown: false,
-            tabBarLabel: "Messages",
-            tabBarStyle:
-              routeName === "InboxDetail"
-                ? { display: "none" }
-                : tabBarStyle,
-            tabBarLabelStyle: {
-              fontSize: RFPercentage(1.4),
-              fontWeight: "bold",
-            },
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="chatbox-ellipses" size={size} color={color} />
-            ),
-          };
+        name="Documents"
+        component={DocumentScreen}
+        options={{
+          headerShown: false,
+          tabBarLabel: "Documents",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="document-text" size={size} color={color} />
+          ),
         }}
       />
       <Tab.Screen

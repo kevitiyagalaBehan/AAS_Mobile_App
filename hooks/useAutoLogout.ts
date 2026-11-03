@@ -1,22 +1,19 @@
 import { useEffect, useRef } from "react";
 import { AppState, AppStateStatus } from "react-native";
-import { useNavigation, NavigationProp } from "@react-navigation/native";
 import { handleLogout } from "../src/utils/logout";
 import { useAuth } from "../src/context/AuthContext";
-import { RootStackParamList } from "../src/navigation/types";
 
 const AUTO_LOGOUT_DELAY = 4 * 60 * 1000;
 
 export const useAutoLogout = () => {
   const appState = useRef(AppState.currentState);
   const backgroundTime = useRef<number | null>(null);
-  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { userData, resetAuthState } = useAuth();
 
   const logout = () => {
     console.log("Auto-logout due to background inactivity");
     if (userData?.authToken) {
-      handleLogout(navigation, false, resetAuthState);
+      handleLogout(false, resetAuthState);
     }
   };
 

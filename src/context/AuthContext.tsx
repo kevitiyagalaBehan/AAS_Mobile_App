@@ -42,8 +42,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [entityAccounts, setEntityAccounts] = useState<AccountEntity[]>([]);
   const resetAuthState = () => {
     setUserData(null);
+    setLoggedInUser(null);
     setCurrentUserName(null);
     setCurrentAccountName(null);
+    setEntityAccounts([]);
     setPendingNavigation(null);
   };
 

@@ -1,14 +1,12 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
-import { getFocusedRouteNameFromRoute } from "@react-navigation/native";
 import HomeScreenFamily from "../screens/HomeScreenFamily";
 import PortfolioScreenFamily from "../screens/PortfolioScreenFamily";
 import { colors } from "../theme/colors";
 import ESigningScreen from "../screens/ESigningScreen";
 import { BottomTabParamListFamily } from "./types";
 import { RFPercentage } from "react-native-responsive-fontsize";
-import InboxStackNavigator from "./InboxStackNavigator";
 import { useWindowDimensions, View, Text } from "react-native";
 import { useESign } from "../context/ESignContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -55,22 +53,6 @@ export default function BottomTabFamily() {
             <Ionicons name="pie-chart" size={size} color={color} />
           ),
         }}
-      />
-      <Tab.Screen
-        name="Inbox"
-        component={InboxStackNavigator}
-        options={({ route }) => ({
-          headerShown: false,
-          tabBarLabel: "Messages",
-          // Hide the bar inside a chat, as for client accounts
-          tabBarStyle:
-            getFocusedRouteNameFromRoute(route) === "InboxDetail"
-              ? { display: "none" }
-              : tabBarStyle,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbox-ellipses" size={size} color={color} />
-          ),
-        })}
       />
       <Tab.Screen
         name="ESigning"

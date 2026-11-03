@@ -18,10 +18,14 @@ export { default as InvestmentPerformance } from "./InvestmentPerformance";
 export { default as ConsolidatedAccounts } from "./ConsolidatedAccounts";
 export { default as AccountList } from "./AccountList";
 export { default as Details } from "./Details";
+export { default as PersonalDetails } from "./PersonalDetails";
 export { default as ESigning } from "./ESigning";
 export { default as CashTransactions } from "./CashTransactions";
+export { default as RecentCashTransactions } from "./RecentCashTransactions";
 export { default as Portfolio } from "./Portfolio";
 export { default as InboxList } from "./InboxList";
+export { default as MessageComposer } from "./MessageComposer";
+export { default as AddRecipientsSheet } from "./AddRecipientsSheet";
 export { default as Document } from "./Document";
 export { default as PinPad } from "./PinPad";
 

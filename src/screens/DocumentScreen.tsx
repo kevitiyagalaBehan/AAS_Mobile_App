@@ -25,7 +25,7 @@ export default function DocumentScreen() {
           contentContainerStyle={{ paddingBottom: height * 0.03 }}
           showsVerticalScrollIndicator={false}
         >
-          <ScreenTitle title="Documents" showBack />
+          <ScreenTitle title="Documents" />
           <View style={styles.bodySection}>
             <Document refreshTrigger={refreshTrigger} />
           </View>

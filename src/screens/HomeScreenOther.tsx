@@ -13,6 +13,7 @@ import {
   Header,
   HomeMessageCard,
   AllocationBreakdown,
+  RecentCashTransactions,
 } from "../../components";
 
 export default function HomeScreenOther() {
@@ -33,13 +34,17 @@ export default function HomeScreenOther() {
             paddingBottom: height * 0.02,
           }}
           showsVerticalScrollIndicator={false}
+          // Lets the Home message card's reply box send without first closing the keyboard
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets
         >
           <Header refreshTrigger={refreshTrigger} />
           <View style={styles.bodySection}>
             <HomeMessageCard refreshTrigger={refreshTrigger} />
-            <AllocationBreakdown
+            <AllocationBreakdown refreshTrigger={refreshTrigger} collapsible />
+            <RecentCashTransactions
               refreshTrigger={refreshTrigger}
-              onSeeHoldings={() => navigation.navigate("Portfolio")}
+              onSeeAll={() => navigation.navigate("Transactions")}
             />
           </View>
         </ScrollView>

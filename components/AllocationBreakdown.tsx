@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  LayoutAnimation,
+} from "react-native";
 import { RFPercentage } from "react-native-responsive-fontsize";
 import { useAuth } from "../src/context/AuthContext";
 import {
@@ -15,16 +21,25 @@ import Card from "./Card";
 
 type AllocationBreakdownProps = {
   refreshTrigger: number;
-  onSeeHoldings?: () => void;
+  // Home: start with only the bar and category tiles; the asset class rows
+  // open with "View details". Portfolio leaves this off and shows everything.
+  collapsible?: boolean;
 };
 
 export default function AllocationBreakdown({
   refreshTrigger,
-  onSeeHoldings,
+  collapsible = false,
 }: AllocationBreakdownProps) {
   const { userData } = useAuth();
   const [data, setData] = useState<PortfolioData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+  const showClasses = !collapsible || expanded;
+
+  const toggleDetails = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpanded((value) => !value);
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -65,9 +80,16 @@ export default function AllocationBreakdown({
     <Card>
       <View style={styles.headerRow}>
         <Text style={styles.title}>Asset allocation</Text>
-        {onSeeHoldings && (
-          <TouchableOpacity onPress={onSeeHoldings} hitSlop={8}>
-            <Text style={styles.link}>See holdings</Text>
+        {collapsible && assetClasses.length > 0 && (
+          <TouchableOpacity
+            onPress={toggleDetails}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityState={{ expanded }}
+          >
+            <Text style={styles.link}>
+              {expanded ? "Hide details" : "View details"}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
@@ -113,7 +135,7 @@ export default function AllocationBreakdown({
             </View>
           )}
 
-          {assetClasses.map((asset) => (
+          {showClasses && assetClasses.map((asset) => (
             <View key={asset.assetClass} style={styles.classRow}>
               <View
                 style={[
@@ -124,10 +146,10 @@ export default function AllocationBreakdown({
               <Text style={styles.className} numberOfLines={1}>
                 {asset.assetClass}
               </Text>
-              <Text style={styles.classValue}>
+              <Text style={styles.classValue} numberOfLines={1}>
                 {formatCurrency(asset.marketValue, 0)}
               </Text>
-              <Text style={styles.classPercent}>
+              <Text style={styles.classPercent} numberOfLines={1}>
                 {asset.percentage.toFixed(2)}%
               </Text>
             </View>
@@ -218,8 +240,9 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     marginRight: 12,
   },
+  // minWidth keeps the column aligned; it grows rather than wrapping with larger text
   classPercent: {
-    width: 64,
+    minWidth: 64,
     textAlign: "right",
     fontSize: RFPercentage(1.9),
     fontWeight: "bold",
