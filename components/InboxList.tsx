@@ -7,6 +7,7 @@ import {
   View,
   TextInput,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,6 +21,9 @@ import {
 } from "../src/utils/messageThreads";
 import { avatarFor, formatThreadDate } from "../src/utils/messageFormat";
 import { colors } from "../src/theme/colors";
+
+// iOS keeps the iMessage-style layout; Android uses its own app bar, FAB and rows
+const isAndroid = Platform.OS === "android";
 
 export default function InboxList() {
   const { userData, loggedInUser } = useAuth();
@@ -117,7 +121,9 @@ export default function InboxList() {
               {name}
             </Text>
             <Text style={styles.time}>{formatThreadDate(item.lastDate)}</Text>
-            <Ionicons name="chevron-forward" size={14} color="#9CA3AF" />
+            {!isAndroid && (
+              <Ionicons name="chevron-forward" size={14} color="#9CA3AF" />
+            )}
           </View>
           <Text style={styles.preview} numberOfLines={2}>
             {item.lastText}
@@ -127,32 +133,53 @@ export default function InboxList() {
     );
   };
 
+  const newMessage = () => navigation.navigate("NewMessage");
+
   return (
     <View style={styles.container}>
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={goHome}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel="Back to home"
-        >
-          <Ionicons name="chevron-back" size={22} color={colors.link} />
-          <Text style={styles.backText}>Home</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => navigation.navigate("NewMessage")}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel="New message"
-        >
-          <Ionicons name="create-outline" size={26} color={colors.link} />
-        </TouchableOpacity>
-      </View>
+      {isAndroid ? (
+        // Android: back arrow and title in one app bar; "new message" is a FAB below
+        <View style={styles.androidAppBar}>
+          <TouchableOpacity
+            onPress={goHome}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Back to home"
+          >
+            <Ionicons name="arrow-back" size={24} color={colors.primary} />
+          </TouchableOpacity>
+          <Text style={styles.androidTitle} accessibilityRole="header">
+            Messages
+          </Text>
+        </View>
+      ) : (
+        <>
+          <View style={styles.topBar}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={goHome}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Back to home"
+            >
+              <Ionicons name="chevron-back" size={22} color={colors.link} />
+              <Text style={styles.backText}>Home</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={newMessage}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="New message"
+            >
+              <Ionicons name="create-outline" size={26} color={colors.link} />
+            </TouchableOpacity>
+          </View>
 
-      <Text style={styles.largeTitle} accessibilityRole="header">
-        Messages
-      </Text>
+          <Text style={styles.largeTitle} accessibilityRole="header">
+            Messages
+          </Text>
+        </>
+      )}
 
       <View style={styles.searchBox}>
         <Ionicons name="search" size={16} color="#6B7280" />
@@ -166,6 +193,17 @@ export default function InboxList() {
           clearButtonMode="while-editing"
           returnKeyType="search"
         />
+        {/* clearButtonMode is iOS-only, so draw the clear button on Android */}
+        {isAndroid && query.length > 0 && (
+          <TouchableOpacity
+            onPress={() => setQuery("")}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Clear search"
+          >
+            <Ionicons name="close-circle" size={18} color="#9CA3AF" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {threads === null && !error ? (
@@ -187,7 +225,21 @@ export default function InboxList() {
             </Text>
           }
           showsVerticalScrollIndicator={false}
+          // Keep the last row clear of the Android FAB
+          contentContainerStyle={isAndroid ? styles.androidListPadding : undefined}
         />
+      )}
+
+      {isAndroid && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={newMessage}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="New message"
+        >
+          <Ionicons name="create-outline" size={24} color="#fff" />
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -199,6 +251,37 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
+  },
+  androidAppBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  androidTitle: {
+    fontSize: RFPercentage(2.8),
+    fontWeight: "bold",
+    color: colors.primary,
+  },
+  androidListPadding: {
+    paddingBottom: 96,
+  },
+  fab: {
+    position: "absolute",
+    right: 20,
+    bottom: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 6,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
   },
   topBar: {
     flexDirection: "row",

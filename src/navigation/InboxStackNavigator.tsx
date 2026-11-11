@@ -14,19 +14,22 @@ import { colors } from "../theme/colors";
 
 const Stack = createStackNavigator<InboxStackParamList>();
 
-// iMessage-style header: "< Messages" on the left, title centred.
+const isAndroid = Platform.OS === "android";
+
+// iMessage-style header on iOS: "< Messages" on the left, title centred.
+// Android follows its own convention: a plain back arrow with the title on the left.
 // A notification can open a conversation with no list underneath, so fall back to it.
 const conversationHeader = ({
   navigation,
 }: {
   navigation: any;
 }): StackNavigationOptions => ({
-  headerTitleAlign: "center",
+  headerTitleAlign: isAndroid ? "left" : "center",
   headerTitleStyle: {
     fontSize: RFPercentage(2.1),
     color: colors.primary,
     fontWeight: "bold",
-    maxWidth: 200,
+    ...(isAndroid ? {} : { maxWidth: 200 }),
   },
   headerLeft: () => (
     <TouchableOpacity
@@ -40,8 +43,14 @@ const conversationHeader = ({
       accessibilityRole="button"
       accessibilityLabel="Back to messages"
     >
-      <Ionicons name="chevron-back" size={22} color={colors.link} />
-      <Text style={styles.backText}>Messages</Text>
+      {isAndroid ? (
+        <Ionicons name="arrow-back" size={24} color={colors.primary} />
+      ) : (
+        <>
+          <Ionicons name="chevron-back" size={22} color={colors.link} />
+          <Text style={styles.backText}>Messages</Text>
+        </>
+      )}
     </TouchableOpacity>
   ),
   headerStyle: {
@@ -110,7 +119,8 @@ const styles = StyleSheet.create({
   backButton: {
     flexDirection: "row",
     alignItems: "center",
-    marginLeft: Platform.OS === "ios" ? 8 : 0,
+    // Android's arrow sits in a standard 16dp inset, like other Android apps
+    marginLeft: isAndroid ? 16 : 8,
   },
   backText: {
     fontSize: RFPercentage(2.1),

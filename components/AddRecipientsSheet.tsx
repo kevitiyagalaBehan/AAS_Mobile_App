@@ -107,8 +107,20 @@ export default function AddRecipientsSheet({
             hitSlop={10}
             accessibilityRole="button"
           >
-            <Ionicons name="chevron-back" size={20} color={colors.primary} />
-            <Text style={styles.backText}>Back</Text>
+            {Platform.OS === "android" ? (
+              // Android: plain back arrow; iOS keeps its "< Back" label
+              <Ionicons
+                name="arrow-back"
+                size={24}
+                color={colors.primary}
+                accessibilityLabel="Back"
+              />
+            ) : (
+              <>
+                <Ionicons name="chevron-back" size={20} color={colors.primary} />
+                <Text style={styles.backText}>Back</Text>
+              </>
+            )}
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Add recipients</Text>
           <View style={[styles.headerSide, styles.headerRight]}>
@@ -124,7 +136,10 @@ export default function AddRecipientsSheet({
 
         <KeyboardAvoidingView
           style={styles.flex}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          // Android draws edge-to-edge (Expo 54), so the window no longer
+          // resizes for the keyboard; pad on both platforms like the other
+          // message screens
+          behavior="padding"
         >
           <ScrollView keyboardShouldPersistTaps="handled">
             <View style={styles.searchBox}>
