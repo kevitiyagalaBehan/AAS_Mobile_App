@@ -7,8 +7,10 @@ import { navigationRef, inboxRoute } from "../src/navigation/RootNavigation";
 import {
   LinkedUsers,
   LoginResponse,
+  PracticeInfo,
   RootStackParamList,
 } from "../src/navigation/types";
+import { savePractice } from "../src/utils/practiceStorage";
 
 export const useSession = () => {
   const {
@@ -20,13 +22,16 @@ export const useSession = () => {
   const navigation =
     useNavigation<StackNavigationProp<RootStackParamList>>();
 
-  // Stores the session and registers for push notifications, without leaving the current screen.
+  // Stores the session and the user's practice, and registers for push notifications,
+  // without leaving the current screen.
   const startSession = async (
-    login: LoginResponse
+    login: LoginResponse,
+    practice: PracticeInfo | null
   ): Promise<LinkedUsers | null> => {
     const { authToken, accountId, accountType } = login;
 
     setUserData({ authToken, accountId, accountType });
+    await savePractice(practice);
 
     const linkedUser = await getLinkedUsers(authToken);
     if (linkedUser) {

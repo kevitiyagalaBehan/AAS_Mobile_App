@@ -14,6 +14,8 @@ import { useVersionCheck } from "./hooks/useVersionCheck";
 import UpdateModal from "./components/UpdateModal";
 import { useEffect, useState } from "react";
 import { getLoginRoute } from "./src/utils/pinStorage";
+import { buildDeviceInfo } from "./src/utils/deviceInfo";
+import { registerDevice } from "./src/utils/pimsApi";
 import * as Notifications from "expo-notifications";
 import { navigationRef, inboxRoute } from "./src/navigation/RootNavigation";
 import {
@@ -34,13 +36,12 @@ function AppNavigator() {
   const { userData } = useAuth();
   const { forceBlock, updateUrl } = useVersionCheck();
 
-  // useEffect(() => {
-  //   registerForPushNotificationsAsync().then((token) => {
-  //     if (token) {
-  //       console.log("Device push token:", token);
-  //     }
-  //   });
-  // }, []);
+  // Registers this install with the server on every launch. Doesn't block startup.
+  useEffect(() => {
+    buildDeviceInfo()
+      .then(registerDevice)
+      .catch((error) => console.warn("Device registration skipped:", error));
+  }, []);
 
   const [loginRoute, setLoginRoute] = useState<"Login" | "PinLogin" | null>(
     null

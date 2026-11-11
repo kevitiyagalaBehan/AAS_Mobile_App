@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
   Text,
-  Image,
   Alert,
   StyleSheet,
   TouchableOpacity,
@@ -22,8 +21,22 @@ import {
   PIN_LENGTH,
   PinRegistration,
 } from "../utils/pinStorage";
-import { RootStackParamList } from "../navigation/types";
+import { buildDeviceInfo } from "../utils/deviceInfo";
+import PracticeLogo from "../../components/PracticeLogo";
+import { PinDisabledCode, RootStackParamList } from "../navigation/types";
 import { colors } from "../theme/colors";
+
+// The alert body is the server's message; the title reflects why the PIN stopped working.
+const getDisabledTitle = (code: PinDisabledCode | null): string => {
+  switch (code) {
+    case "locked":
+      return "PIN locked";
+    case "expired":
+      return "PIN expired";
+    default:
+      return "PIN login disabled";
+  }
+};
 
 export default function PinLoginScreen() {
   const { startSession, enterApp } = useSession();
@@ -54,10 +67,11 @@ export default function PinLoginScreen() {
 
     setLoading(true);
     try {
+      const deviceInfo = await buildDeviceInfo();
       const result = await loginWithPin(
-        registration.deviceId,
         registration.deviceToken,
-        enteredPin
+        enteredPin,
+        deviceInfo
       );
 
       switch (result.status) {
@@ -65,7 +79,7 @@ export default function PinLoginScreen() {
           if (result.newDeviceToken) {
             await updateDeviceToken(result.newDeviceToken);
           }
-          await startSession(result.login);
+          await startSession(result.login, result.practice);
           enterApp(result.login.accountType);
           return;
 
@@ -82,7 +96,7 @@ export default function PinLoginScreen() {
 
         case "disabled":
           await clearPinRegistration();
-          Alert.alert("PIN login disabled", result.message, [
+          Alert.alert(getDisabledTitle(result.code), result.message, [
             { text: "OK", onPress: goToPasswordLogin },
           ]);
           return;
@@ -115,11 +129,7 @@ export default function PinLoginScreen() {
         bounces={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Image
-          source={require("../../assets/aas_logo.png")}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <PracticeLogo style={styles.logo} />
 
         <Text style={styles.title}>
           {registration?.displayName

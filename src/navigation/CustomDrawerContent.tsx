@@ -233,7 +233,9 @@ export default function CustomDrawerContent(props: any) {
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
         <TouchableOpacity
-          onPress={() => handleLogout(true, resetAuthState)}
+          onPress={() =>
+            handleLogout(true, resetAuthState, userData?.authToken)
+          }
           hitSlop={8}
           accessibilityRole="button"
         >

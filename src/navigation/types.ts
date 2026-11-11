@@ -131,6 +131,30 @@ export interface LoginResponse {
   accountType: string;
 }
 
+// Sent with login, PIN login, PIN setup and device registration.
+export interface DeviceInfo {
+  deviceId: string;
+  platform: string;
+  osVersion: string;
+  deviceModel: string;
+  appVersion: string;
+  buildNumber: string;
+  pushToken: string | null;
+}
+
+// The logged-in user's practice, returned by both logins and cached for the login screens.
+export interface PracticeInfo {
+  practiceId: number;
+  practiceBrand: string | null;
+  practiceName: string | null;
+  logoUrl: string | null;
+  logoVersion: string | null;
+}
+
+export type LoginResult =
+  | { success: true; login: LoginResponse; practice: PracticeInfo | null }
+  | { success: false; message: string };
+
 export type RegisterPinResult =
   | { success: true; deviceToken: string }
   | { success: false; message: string };
@@ -155,10 +179,25 @@ export interface ClientProfile {
   userLevelName: string;
 }
 
+// pin_disabled_code values from the server. Kept as a string so a new code doesn't break parsing.
+export type PinDisabledCode =
+  | "blocked"
+  | "device_not_found"
+  | "expired"
+  | "locked"
+  | "user_inactive"
+  | "user"
+  | (string & {});
+
 export type PinLoginResult =
-  | { status: "success"; login: LoginResponse; newDeviceToken: string | null }
+  | {
+      status: "success";
+      login: LoginResponse;
+      newDeviceToken: string | null;
+      practice: PracticeInfo | null;
+    }
   | { status: "invalid"; message: string; remainingAttempts: number | null }
-  | { status: "disabled"; message: string }
+  | { status: "disabled"; message: string; code: PinDisabledCode | null }
   | { status: "error"; message: string };
 
 export interface AssetAllocationSummary {
