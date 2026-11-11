@@ -13,6 +13,30 @@ Notifications.setNotificationHandler({
   }),
 });
 
+const PUSH_TOKEN_TIMEOUT_MS = 5000;
+
+// Returns the push token only if notification permission was already granted; never prompts.
+// Times out so a slow network can't hold up login or device registration.
+export async function getPushTokenIfPermitted(): Promise<ExpoPushToken> {
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== "granted") return null;
+
+    const tokenPromise = Notifications.getExpoPushTokenAsync({
+      projectId: Constants.expoConfig?.extra?.eas?.projectId,
+    }).then((result) => result.data);
+
+    const timeout = new Promise<null>((resolve) =>
+      setTimeout(() => resolve(null), PUSH_TOKEN_TIMEOUT_MS)
+    );
+
+    return await Promise.race([tokenPromise, timeout]);
+  } catch (error) {
+    console.warn("getPushTokenIfPermitted error", error);
+    return null;
+  }
+}
+
 export async function registerForPushNotificationsAsync(): Promise<ExpoPushToken> {
   try {
     const { status: existingStatus } =

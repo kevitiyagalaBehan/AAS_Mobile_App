@@ -17,8 +17,8 @@ import PinPad from "../../components/PinPad";
 import { useAuth } from "../context/AuthContext";
 import { useSession } from "../../hooks/useSession";
 import { registerPin } from "../utils/pimsApi";
+import { buildDeviceInfo } from "../utils/deviceInfo";
 import {
-  getDeviceId,
   isWeakPin,
   savePinRegistration,
   PIN_LENGTH,
@@ -67,8 +67,8 @@ export default function PinSetupScreen() {
 
     setLoading(true);
     try {
-      const deviceId = await getDeviceId();
-      const result = await registerPin(userData.authToken, deviceId, confirmedPin);
+      const deviceInfo = await buildDeviceInfo();
+      const result = await registerPin(userData.authToken, confirmedPin, deviceInfo);
 
       if (!result.success) {
         restart(result.message);
