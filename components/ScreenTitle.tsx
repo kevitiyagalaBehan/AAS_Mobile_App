@@ -17,12 +17,15 @@ type ScreenTitleProps = {
   showBack?: boolean;
   // Extra line shown under the account name
   subtitle?: React.ReactNode;
+  // Overrides the default back action (Home tab), e.g. to return to the previous screen
+  onBack?: () => void;
 };
 
 export default function ScreenTitle({
   title,
   showBack = false,
   subtitle,
+  onBack,
 }: ScreenTitleProps) {
   const navigation = useNavigation<any>();
   const { currentAccountName, userData } = useAuth();
@@ -40,10 +43,10 @@ export default function ScreenTitle({
       {showBack && (
         <TouchableOpacity
           style={styles.backButton}
-          onPress={goHome}
+          onPress={onBack ?? goHome}
           hitSlop={10}
           accessibilityRole="button"
-          accessibilityLabel="Back to home"
+          accessibilityLabel={onBack ? "Back" : "Back to home"}
         >
           <Ionicons name="chevron-back" size={RFPercentage(3)} color={colors.primary} />
         </TouchableOpacity>

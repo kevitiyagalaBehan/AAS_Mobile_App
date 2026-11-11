@@ -1,4 +1,12 @@
-import { Investment } from "../navigation/types";
+import { FinancialYear, Investment } from "../navigation/types";
+
+// "2026/27" from the financial year's start and end dates
+export const formatFinancialYear = (fy?: FinancialYear) => {
+  if (!fy?.startDate || !fy?.endDate) return fy?.financialYear;
+  const start = new Date(fy.startDate).getFullYear();
+  const end = new Date(fy.endDate).getFullYear();
+  return `${start}/${String(end).slice(2)}`;
+};
 
 export const formatCurrency = (value: number, decimals = 2) =>
   `$${value.toLocaleString("en-AU", {

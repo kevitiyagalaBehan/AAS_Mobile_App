@@ -10,7 +10,14 @@ import {
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { RFPercentage } from "react-native-responsive-fontsize";
-import { Card, ScreenTitle } from "../../components";
+import { useNavigation } from "@react-navigation/native";
+import {
+  Card,
+  ScreenTitle,
+  ProgressBar,
+  CapRow,
+  CONCESSIONAL_COLOR,
+} from "../../components";
 import { useRefreshTrigger } from "../../hooks/useRefreshTrigger";
 import { useAuth } from "../context/AuthContext";
 import { fetchSuperData } from "../utils/superData";
@@ -18,13 +25,17 @@ import {
   ContributionCap,
   PensionLimitDetails,
   EstimatedMemberDetails,
+  FinancialYear,
 } from "../navigation/types";
-import { formatCurrency, formatShortDate } from "../utils/format";
+import {
+  formatCurrency,
+  formatFinancialYear,
+  formatShortDate,
+} from "../utils/format";
 import { colors } from "../theme/colors";
 
 type CapMember = ContributionCap["members"][number];
 type PensionMember = PensionLimitDetails["members"][number];
-type FinancialYear = ContributionCap["financialYear"];
 
 type Member = {
   key: string;
@@ -65,30 +76,9 @@ const buildMembers = (
   return members;
 };
 
-// "2026/27" from the financial year's start and end dates
-const formatFinancialYear = (fy?: FinancialYear) => {
-  if (!fy?.startDate || !fy?.endDate) return fy?.financialYear;
-  const start = new Date(fy.startDate).getFullYear();
-  const end = new Date(fy.endDate).getFullYear();
-  return `${start}/${String(end).slice(2)}`;
-};
-
-const ProgressBar = ({ value, max, color }: { value: number; max: number; color: string }) => (
-  <View style={barStyles.track}>
-    <View
-      style={[
-        barStyles.fill,
-        {
-          width: `${max > 0 ? Math.min(Math.max(value / max, 0), 1) * 100 : 0}%`,
-          backgroundColor: color,
-        },
-      ]}
-    />
-  </View>
-);
-
 export default function SuperScreen() {
   const { width, height } = useWindowDimensions();
+  const navigation = useNavigation<any>();
   const { refreshTrigger, refreshing, onRefresh } = useRefreshTrigger();
   const { userData } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
@@ -136,9 +126,23 @@ export default function SuperScreen() {
 
     return (
       <Card>
-        <Text style={styles.cardCaption}>
-          Member balance · {formatShortDate(asAtDate)}
-        </Text>
+        <View style={styles.cardHeaderRow}>
+          <Text style={styles.cardCaption}>
+            Member balance · {formatShortDate(asAtDate)}
+          </Text>
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate("MemberBalanceDetail", {
+                memberName: balance.memberName,
+              })
+            }
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="View member balance details"
+          >
+            <Text style={styles.viewDetailsText}>View details</Text>
+          </TouchableOpacity>
+        </View>
         <Text style={styles.bigAmount}>{formatCurrency(total)}</Text>
         <View style={styles.splitBar}>
           {balance.accumulation > 0 && (
@@ -171,6 +175,23 @@ export default function SuperScreen() {
       <Card>
         <View style={styles.cardHeaderRow}>
           <Text style={styles.cardTitle}>Minimum pension</Text>
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate("PensionDetail", { memberName: pension.name })
+            }
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="View pension details"
+          >
+            <Text style={styles.viewDetailsText}>View details</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.amountRow}>
+          <Text style={styles.mediumAmount}>
+            {met
+              ? "Minimum paid"
+              : `${formatCurrency(pension.requiredForMinimum, 0)} to pay`}
+          </Text>
           {financialYear?.endDate && (
             <View style={[styles.badge, met && styles.badgeMet]}>
               <Text style={[styles.badgeText, met && styles.badgeTextMet]}>
@@ -179,11 +200,6 @@ export default function SuperScreen() {
             </View>
           )}
         </View>
-        <Text style={styles.mediumAmount}>
-          {met
-            ? "Minimum paid"
-            : `${formatCurrency(pension.requiredForMinimum, 0)} to pay`}
-        </Text>
         <ProgressBar
           value={pension.minimumPaidToDate}
           max={pension.minimumPensionAmount}
@@ -197,37 +213,6 @@ export default function SuperScreen() {
     );
   };
 
-  const renderCap = (
-    label: string,
-    paid: number,
-    maximum: number,
-    available: number,
-    barColor: string,
-    isLast: boolean
-  ) => (
-    <View style={[styles.capBlock, !isLast && styles.capDivider]}>
-      {maximum <= 0 ? (
-        <View style={styles.capHeader}>
-          <Text style={styles.capLabel}>{label}</Text>
-          <Text style={styles.capUnavailable}>Not available · $0 cap</Text>
-        </View>
-      ) : (
-        <>
-          <View style={styles.capHeader}>
-            <Text style={styles.capLabel}>{label}</Text>
-            <Text style={styles.capAvailable}>
-              {formatCurrency(available, 0)} available
-            </Text>
-          </View>
-          <ProgressBar value={paid} max={maximum} color={barColor} />
-          <Text style={styles.helperText}>
-            {formatCurrency(paid, 0)} of {formatCurrency(maximum, 0)} used
-          </Text>
-        </>
-      )}
-    </View>
-  );
-
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
@@ -238,10 +223,7 @@ export default function SuperScreen() {
           contentContainerStyle={{ flexGrow: 1, paddingBottom: height * 0.02 }}
           showsVerticalScrollIndicator={false}
         >
-          <ScreenTitle
-            title="Member Details"
-            subtitle={fyLabel ? `${fyLabel} financial year` : undefined}
-          />
+          <ScreenTitle title="Member Details" />
 
           <View style={styles.bodySection}>
             {loading ? (
@@ -284,6 +266,12 @@ export default function SuperScreen() {
                   </ScrollView>
                 )}
 
+                {!!fyLabel && (
+                  <Text style={styles.fyLabel}>
+                    {fyLabel} financial year
+                  </Text>
+                )}
+
                 {member && (
                   <View style={styles.memberHeader}>
                     <Text style={styles.memberName} numberOfLines={2}>
@@ -301,25 +289,36 @@ export default function SuperScreen() {
                   renderPension(member.pension)}
                 {member?.caps && (
                   <Card>
-                    <Text style={[styles.cardTitle, styles.capsTitle]}>
-                      Contribution caps
-                    </Text>
-                    {renderCap(
-                      "Concessional",
-                      member.caps.concessionalPaidToDate,
-                      member.caps.concessionalMaximum,
-                      member.caps.concessionalAvailable,
-                      "#5DA8A7",
-                      false
-                    )}
-                    {renderCap(
-                      "Non-concessional",
-                      member.caps.nonConcessionalPaidToDate,
-                      member.caps.nonConcessionalMaximum,
-                      member.caps.nonConcessionalAvailable,
-                      colors.primary,
-                      true
-                    )}
+                    <View style={[styles.cardHeaderRow, styles.capsTitle]}>
+                      <Text style={styles.cardTitle}>Contribution caps</Text>
+                      <TouchableOpacity
+                        onPress={() =>
+                          navigation.navigate("ContributionCapDetail", {
+                            memberName: member.name,
+                          })
+                        }
+                        hitSlop={10}
+                        accessibilityRole="button"
+                        accessibilityLabel="View contribution cap details"
+                      >
+                        <Text style={styles.viewDetailsText}>View details</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <CapRow
+                      label="Concessional"
+                      paid={member.caps.concessionalPaidToDate}
+                      maximum={member.caps.concessionalMaximum}
+                      available={member.caps.concessionalAvailable}
+                      barColor={CONCESSIONAL_COLOR}
+                    />
+                    <CapRow
+                      label="Non-concessional"
+                      paid={member.caps.nonConcessionalPaidToDate}
+                      maximum={member.caps.nonConcessionalMaximum}
+                      available={member.caps.nonConcessionalAvailable}
+                      barColor={colors.primary}
+                      isLast
+                    />
                   </Card>
                 )}
               </>
@@ -330,20 +329,6 @@ export default function SuperScreen() {
     </SafeAreaProvider>
   );
 }
-
-const barStyles = StyleSheet.create({
-  track: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#E5E7EB",
-    overflow: "hidden",
-    marginTop: 10,
-  },
-  fill: {
-    height: "100%",
-    borderRadius: 4,
-  },
-});
 
 const getStyles = (width: number, height: number) =>
   StyleSheet.create({
@@ -384,6 +369,12 @@ const getStyles = (width: number, height: number) =>
     },
     chipTextSelected: {
       color: "#fff",
+    },
+    fyLabel: {
+      fontSize: RFPercentage(1.8),
+      color: "#6B7280",
+      marginTop: 10,
+      paddingHorizontal: 4,
     },
     memberHeader: {
       flexDirection: "row",
@@ -461,6 +452,20 @@ const getStyles = (width: number, height: number) =>
     capsTitle: {
       marginBottom: 4,
     },
+    // Amount on the left, Met / Due badge on the right
+    amountRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 8,
+      marginTop: 6,
+    },
+    // Matches the dashboard's "View details" / "See all" links
+    viewDetailsText: {
+      fontSize: RFPercentage(1.9),
+      fontWeight: "bold",
+      color: colors.link,
+    },
     badge: {
       backgroundColor: "#FFEDD5",
       borderRadius: 8,
@@ -479,39 +484,14 @@ const getStyles = (width: number, height: number) =>
       color: "#15803D",
     },
     mediumAmount: {
+      flexShrink: 1,
       fontSize: RFPercentage(3),
       fontWeight: "bold",
       color: colors.primary,
-      marginTop: 6,
     },
     helperText: {
       fontSize: RFPercentage(1.7),
       color: "#6B7280",
       marginTop: 6,
-    },
-    capBlock: {
-      paddingVertical: 10,
-    },
-    capDivider: {
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: "#E5E7EB",
-    },
-    capHeader: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-    },
-    capLabel: {
-      fontSize: RFPercentage(1.9),
-      color: "#111827",
-    },
-    capAvailable: {
-      fontSize: RFPercentage(1.9),
-      fontWeight: "bold",
-      color: colors.primary,
-    },
-    capUnavailable: {
-      fontSize: RFPercentage(1.8),
-      color: "#6B7280",
     },
   });

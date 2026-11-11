@@ -2,6 +2,16 @@ export { default as Header } from "./Header";
 export { default as ScreenTitle } from "./ScreenTitle";
 export { default as UserAvatar } from "./UserAvatar";
 export { default as Card } from "./Card";
+export { ProgressBar, CapRow, CONCESSIONAL_COLOR } from "./CapProgress";
+export {
+  MemberTabs,
+  SummaryCard,
+  SummaryRow,
+  SummarySection,
+  memberKey,
+} from "./MemberSummary";
+export { default as DateRangePicker } from "./DateRangePicker";
+export { default as FinancialYearPicker } from "./FinancialYearPicker";
 export { default as HomeMessageCard } from "./HomeMessageCard";
 export { default as AllocationBreakdown } from "./AllocationBreakdown";
 export { default as PortfolioSummary } from "./PortfolioSummary";

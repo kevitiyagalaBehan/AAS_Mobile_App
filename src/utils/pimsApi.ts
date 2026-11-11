@@ -7,7 +7,10 @@ import {
   PortfolioData,
   AssetAllocationSummary,
   ContributionCap,
+  ContributionCapDetailed,
+  FinancialYear,
   PensionLimitDetails,
+  PensionLimitMember,
   EstimatedMemberDetails,
   InvestmentPerformanceDetails,
   ForgotPassword,
@@ -671,6 +674,105 @@ export const getContributionCapSummary = async (
     }
     const data: ContributionCap = await response.json();
     return data;
+  } catch (error) {
+    console.error("Fetch failed:", error);
+    return null;
+  }
+};
+
+
+export const getFinancialYears = async (
+  authToken: string
+): Promise<FinancialYear[] | null> => {
+  try {
+    const response = await fetch(`${apiBaseUrl}/FinancialYear/All`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    const data = await response.json();
+    return Array.isArray(data) ? (data as FinancialYear[]) : null;
+  } catch (error) {
+    console.error("Fetch failed:", error);
+    return null;
+  }
+};
+
+
+// "CCMaximum" -> "ccMaximum", "MemberName" -> "memberName". Leaves camelCase keys as-is.
+const camelKey = (key: string) => key.replace(/^[A-Z]+(?=[A-Z][a-z]|$)|^[A-Z]/, (m) => m.toLowerCase());
+
+const toCamelKeys = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(toCamelKeys);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [camelKey(k), toCamelKeys(v)])
+    );
+  }
+  return value;
+};
+
+export const getContributionCapDetailed = async (
+  authToken: string,
+  superFundId: string,
+  financialYearId: string
+): Promise<ContributionCapDetailed[] | null> => {
+  try {
+    const response = await fetch(
+      `${apiBaseUrl}/ContributionCap/Detailed/${superFundId}/${financialYearId}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    const data = await response.json();
+    return Array.isArray(data)
+      ? (data.map(toCamelKeys) as ContributionCapDetailed[])
+      : null;
+  } catch (error) {
+    console.error("Fetch failed:", error);
+    return null;
+  }
+};
+
+
+export const getPensionLimitMembers = async (
+  authToken: string,
+  superFundId: string,
+  financialYearId: string
+): Promise<PensionLimitMember[] | null> => {
+  try {
+    const response = await fetch(
+      `${apiBaseUrl}/PensionsContributions/PensionLimitMembers/${superFundId}/${financialYearId}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    const data = await response.json();
+    return Array.isArray(data)
+      ? (data.map(toCamelKeys) as PensionLimitMember[])
+      : null;
   } catch (error) {
     console.error("Fetch failed:", error);
     return null;

@@ -4,14 +4,10 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Modal,
-  Platform,
-  Pressable,
   ScrollView,
   ActivityIndicator,
   useWindowDimensions,
 } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { RFPercentage } from "react-native-responsive-fontsize";
 import { useAuth } from "../src/context/AuthContext";
@@ -21,8 +17,7 @@ import { formatCurrency, formatShortDate, toApiDate } from "../src/utils/format"
 import { colors } from "../src/theme/colors";
 import Card from "./Card";
 import DetailModal from "./DetailModal";
-
-type PickerTarget = "from" | "to";
+import DateRangePicker from "./DateRangePicker";
 
 export const cleanDescription = (description?: string) =>
   description?.includes("Closing Balance")
@@ -55,9 +50,6 @@ export default function Transactions({
     return oneYearAgo;
   });
   const [endDate, setEndDate] = useState(new Date());
-  const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
-  // iOS edits a draft in the bottom sheet and only applies it on Done
-  const [draftDate, setDraftDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedHolding, setSelectedHolding] = useState<string>("");
@@ -112,24 +104,6 @@ export default function Transactions({
   const moneyOut = visible.reduce((sum, t) => sum + (t.debit ?? 0), 0);
   const showAccountName = holdings.length > 1 && !activeHolding;
 
-  const today = new Date();
-
-  const openPicker = (target: PickerTarget) => {
-    setDraftDate(target === "from" ? startDate : endDate);
-    setPickerTarget(target);
-  };
-
-  const applyDate = (target: PickerTarget, date: Date) => {
-    if (target === "from") setStartDate(date);
-    else setEndDate(date);
-  };
-
-  // From can't go past To; To can't be before From or in the future
-  const pickerLimits =
-    pickerTarget === "from"
-      ? { maximumDate: endDate }
-      : { minimumDate: startDate, maximumDate: today };
-
   const detailRows = selectedItem
     ? [
         { label: "Date", value: formatShortDate(selectedItem.transactionDate) },
@@ -146,24 +120,6 @@ export default function Transactions({
         { label: "Balance", value: formatCurrency(displayBalance(selectedItem)) },
       ]
     : [];
-
-  const renderDateButton = (target: PickerTarget, label: string, date: Date) => (
-    <TouchableOpacity
-      style={styles.dateButton}
-      onPress={() => openPicker(target)}
-      activeOpacity={0.7}
-      accessibilityRole="button"
-      accessibilityLabel={`${label} date, ${formatShortDate(date)}`}
-    >
-      <Ionicons name="calendar-outline" size={20} color={colors.primary} />
-      <View style={styles.dateTextBox}>
-        <Text style={styles.dateLabel}>{label}</Text>
-        <Text style={styles.dateValue} numberOfLines={1}>
-          {formatShortDate(date)}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
 
   const renderRow = (item: CashTransactions, index: number) => {
     const isCredit = item.credit != null;
@@ -218,10 +174,12 @@ export default function Transactions({
 
   return (
     <View>
-      <View style={styles.dateRow}>
-        {renderDateButton("from", "From", startDate)}
-        {renderDateButton("to", "To", endDate)}
-      </View>
+      <DateRangePicker
+        from={startDate}
+        to={endDate}
+        onChangeFrom={setStartDate}
+        onChangeTo={setEndDate}
+      />
 
       {holdings.length > 1 && (
         <ScrollView
@@ -292,61 +250,6 @@ export default function Transactions({
         </>
       )}
 
-      {pickerTarget && Platform.OS === "android" && (
-        <DateTimePicker
-          value={pickerTarget === "from" ? startDate : endDate}
-          mode="date"
-          display="default"
-          {...pickerLimits}
-          onChange={(event, date) => {
-            const target = pickerTarget;
-            setPickerTarget(null);
-            if (event.type === "set" && date) applyDate(target, date);
-          }}
-        />
-      )}
-
-      {Platform.OS === "ios" && (
-        <Modal
-          visible={!!pickerTarget}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setPickerTarget(null)}
-        >
-          <Pressable style={styles.sheetBackdrop} onPress={() => setPickerTarget(null)} />
-          <View style={styles.sheet}>
-            <View style={styles.sheetHeader}>
-              <TouchableOpacity onPress={() => setPickerTarget(null)} hitSlop={10}>
-                <Text style={styles.sheetCancel}>Cancel</Text>
-              </TouchableOpacity>
-              <Text style={styles.sheetTitle}>
-                {pickerTarget === "from" ? "From date" : "To date"}
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  if (pickerTarget) applyDate(pickerTarget, draftDate);
-                  setPickerTarget(null);
-                }}
-                hitSlop={10}
-              >
-                <Text style={styles.sheetDone}>Done</Text>
-              </TouchableOpacity>
-            </View>
-            {pickerTarget && (
-              <DateTimePicker
-                value={draftDate}
-                mode="date"
-                display="inline"
-                themeVariant="light"
-                accentColor={colors.primary}
-                {...pickerLimits}
-                onChange={(_, date) => date && setDraftDate(date)}
-              />
-            )}
-          </View>
-        </Modal>
-      )}
-
       <DetailModal
         visible={!!selectedItem}
         title={selectedItem?.holdingDescription ?? ""}
@@ -359,34 +262,6 @@ export default function Transactions({
 
 const getStyles = (width: number, height: number) =>
   StyleSheet.create({
-    dateRow: {
-      flexDirection: "row",
-      gap: 10,
-    },
-    dateButton: {
-      flex: 1,
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: "#fff",
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: "#E5E7EB",
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-    },
-    dateTextBox: {
-      flex: 1,
-      marginLeft: 10,
-    },
-    dateLabel: {
-      fontSize: RFPercentage(1.6),
-      color: "#6B7280",
-    },
-    dateValue: {
-      fontSize: RFPercentage(2),
-      fontWeight: "bold",
-      color: colors.primary,
-    },
     chipRow: {
       gap: 8,
       paddingTop: 12,
@@ -526,39 +401,5 @@ const getStyles = (width: number, height: number) =>
       fontSize: RFPercentage(1.6),
       color: "#9CA3AF",
       marginTop: 2,
-    },
-    sheetBackdrop: {
-      flex: 1,
-      backgroundColor: "rgba(0,0,0,0.4)",
-    },
-    sheet: {
-      backgroundColor: "#fff",
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
-      paddingHorizontal: 12,
-      paddingBottom: 32,
-    },
-    sheetHeader: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      paddingHorizontal: 8,
-      paddingVertical: 14,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: "#E5E7EB",
-    },
-    sheetTitle: {
-      fontSize: RFPercentage(2.1),
-      fontWeight: "bold",
-      color: colors.primary,
-    },
-    sheetCancel: {
-      fontSize: RFPercentage(2),
-      color: "#6B7280",
-    },
-    sheetDone: {
-      fontSize: RFPercentage(2),
-      fontWeight: "bold",
-      color: colors.link,
     },
   });
