@@ -2,13 +2,28 @@
 // Endpoints switched on in ADVISER_MOCKS (devFlags.ts) return dummy data instead.
 import Constants from "expo-constants";
 import {
+  AdviserAccountList,
   AdviserBadgeCounts,
   AdviserInvestmentOverview,
   AdviserJobSummary,
+  AdviserRecentAccount,
   JobPhase,
 } from "../navigation/types";
 import { ADVISER_MOCKS } from "./devFlags";
-import { mockBadgeCounts } from "./adviserMocks";
+import {
+  mockAccounts,
+  mockBadgeCounts,
+  mockMarkViewed,
+  mockRecentlyViewed,
+} from "./adviserMocks";
+
+export type AccountQuery = {
+  search?: string;
+  // A key from AdviserAccountList.filters; "all" for no filter
+  filter?: string;
+  page?: number;
+  pageSize?: number;
+};
 
 const apiBaseUrl = Constants.expoConfig?.extra?.apiBaseUrl as string;
 
@@ -67,6 +82,46 @@ export const getAdviserInvestmentOverview = (
   authToken: string
 ): Promise<AdviserInvestmentOverview | null> =>
   getJson("/AdviserDashboard/InvestmentOverview", authToken);
+
+export const getAdviserAccounts = (
+  authToken: string,
+  { search = "", filter = "all", page = 1, pageSize = 50 }: AccountQuery
+): Promise<AdviserAccountList | null> => {
+  if (ADVISER_MOCKS.accounts) return mock(mockAccounts(search, filter, page, pageSize));
+  const params = new URLSearchParams({
+    filter,
+    page: String(page),
+    pageSize: String(pageSize),
+  });
+  if (search.trim()) params.set("search", search.trim());
+  return getJson(`/AdviserAccounts?${params}`, authToken);
+};
+
+export const getAdviserRecentlyViewed = (
+  authToken: string,
+  limit = 10
+): Promise<AdviserRecentAccount[] | null> =>
+  ADVISER_MOCKS.recentlyViewed
+    ? mock(mockRecentlyViewed(limit))
+    : getJson(`/AdviserAccounts/RecentlyViewed?limit=${limit}`, authToken);
+
+// Records that the adviser opened this account, for the Recently viewed list
+export const markAccountViewed = async (authToken: string, accountId: string) => {
+  if (ADVISER_MOCKS.recentlyViewed) {
+    mockMarkViewed(accountId);
+    return;
+  }
+  const path = `/AdviserAccounts/${encodeURIComponent(accountId)}/Viewed`;
+  try {
+    const response = await fetch(`${apiBaseUrl}${path}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
+    if (!response.ok) console.error(`POST ${path} failed: ${response.status}`);
+  } catch (error) {
+    console.error(`POST ${path} failed:`, error);
+  }
+};
 
 export const getAdviserBadgeCounts = (
   authToken: string

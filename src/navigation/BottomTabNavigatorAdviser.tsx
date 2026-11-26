@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { RFPercentage } from "react-native-responsive-fontsize";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AdviserHomeScreen from "../screens/AdviserHomeScreen";
+import AdviserAccountsScreen from "../screens/AdviserAccountsScreen";
 import AdviserComingSoonScreen from "../screens/AdviserComingSoonScreen";
 import { useAdviserBadges } from "../context/AdviserBadgeContext";
 import { BottomTabParamListAdviser } from "./types";
@@ -54,7 +55,7 @@ export default function BottomTabAdviser() {
       />
       <Tab.Screen
         name="AdviserAccounts"
-        component={AdviserComingSoonScreen}
+        component={AdviserAccountsScreen}
         options={{ tabBarLabel: "Accounts", tabBarIcon: tabIcon("people") }}
       />
       <Tab.Screen

@@ -1,0 +1,34 @@
+[
+  {
+    "accountId": "1006",
+    "accountName": "Demo Superannuation Fund 2020",
+    "accountType": "SMSF",
+    "clientNames": "Isabella Suchocki",
+    "balance": 3696860.69,
+    "viewedAt": "2026-11-25T08:41:00+11:00"
+  },
+  {
+    "accountId": "1004",
+    "accountName": "Chen Family Super Fund",
+    "accountType": "SMSF",
+    "clientNames": "David and Amy Chen",
+    "balance": 2050000,
+    "viewedAt": "2026-11-24T16:02:00+11:00"
+  },
+  {
+    "accountId": "1007",
+    "accountName": "Dawson Family Trust",
+    "accountType": "Trust",
+    "clientNames": "Mark and Julie Dawson",
+    "balance": 1210455.3,
+    "viewedAt": "2026-11-24T10:15:00+11:00"
+  },
+  {
+    "accountId": "1005",
+    "accountName": "Coastal Wealth Super Fund",
+    "accountType": "SMSF",
+    "clientNames": "Tom and Kate Harris",
+    "balance": 4120000,
+    "viewedAt": "2026-11-21T14:30:00+11:00"
+  }
+]

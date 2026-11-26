@@ -21,7 +21,13 @@ import {
 } from "../src/utils/pimsApi";
 import { getHoldingsTotal } from "../src/utils/format";
 import { useUnreadMessageCount } from "../hooks/useUnreadMessageCount";
-import { DrawerActions, useNavigation } from "@react-navigation/native";
+import {
+  DrawerActions,
+  StackActions,
+  useNavigation,
+} from "@react-navigation/native";
+import { useClientView } from "../hooks/useClientView";
+import { navigationRef } from "../src/navigation/RootNavigation";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { RootStackParamList, AccountOption } from "../src/navigation/types";
 import { colors } from "../src/theme/colors";
@@ -62,6 +68,8 @@ export default function Header({ refreshTrigger }: HeaderProps) {
   const styles = getStyles(width, height);
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const unreadCount = useUnreadMessageCount(refreshTrigger);
+  // Set when an adviser has opened this account from their Accounts tab
+  const { viewingClient, exitClient } = useClientView();
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -83,7 +91,8 @@ export default function Header({ refreshTrigger }: HeaderProps) {
 
       if (accountDetails && accountDetails.length > 0) {
         setCurrentAccountName(accountDetails[0].superFundName);
-      } else {
+      } else if (!viewingClient) {
+        // An adviser already has the name from the account list, so keep that
         setCurrentAccountName("User not found");
       }
 
@@ -192,6 +201,12 @@ export default function Header({ refreshTrigger }: HeaderProps) {
         : null
     );
 
+    // An adviser keeps their own layout underneath, so only the client layout is swapped
+    if (viewingClient) {
+      navigationRef.dispatch(StackActions.replace(clientRoute(accountType), {}));
+      return;
+    }
+
     navigation.reset({
       index: 0,
       // Switching accounts always stays inside a client layout, so only the account type matters
@@ -201,15 +216,41 @@ export default function Header({ refreshTrigger }: HeaderProps) {
 
   if (!userData?.authToken || !userData?.accountId) return null;
 
-  const canSwitchAccount = userAccountType === "Family Group";
+  // For an adviser, the logged-in user's own account type says nothing about this client
+  const canSwitchAccount = viewingClient
+    ? viewingClient.accountType === "Family Group"
+    : userAccountType === "Family Group";
 
   return (
     <View style={styles.headerSection}>
       <View style={styles.greetingRow}>
-        <Text style={styles.greetingText} numberOfLines={1}>
-          {getGreeting()}
-          {userFirstName ? `, ${userFirstName}` : ""}
-        </Text>
+        {viewingClient ? (
+          <>
+            <TouchableOpacity
+              style={[styles.iconButton, styles.homeButton]}
+              onPress={exitClient}
+              activeOpacity={0.7}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel="Back to adviser dashboard"
+            >
+              <Ionicons name="home-outline" size={20} color={colors.primary} />
+            </TouchableOpacity>
+            <View style={styles.clientText}>
+              <Text style={styles.clientLabel}>Viewing client</Text>
+              {!!viewingClient.clientNames && (
+                <Text style={styles.clientNames} numberOfLines={1}>
+                  {viewingClient.clientNames}
+                </Text>
+              )}
+            </View>
+          </>
+        ) : (
+          <Text style={styles.greetingText} numberOfLines={1}>
+            {getGreeting()}
+            {userFirstName ? `, ${userFirstName}` : ""}
+          </Text>
+        )}
         <View style={styles.headerButtons}>
           <TouchableOpacity
             style={styles.iconButton}
@@ -330,6 +371,26 @@ const getStyles = (width: number, height: number) =>
       fontSize: RFPercentage(2),
       color: "#5A6478",
       marginRight: width * 0.03,
+    },
+    homeButton: {
+      marginRight: width * 0.03,
+    },
+    clientText: {
+      flex: 1,
+      marginRight: width * 0.03,
+    },
+    clientLabel: {
+      fontSize: RFPercentage(1.6),
+      fontWeight: "bold",
+      color: "#6B7280",
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+    },
+    clientNames: {
+      fontSize: RFPercentage(2.1),
+      fontWeight: "bold",
+      color: colors.primary,
+      marginTop: 2,
     },
     headerButtons: {
       flexDirection: "row",

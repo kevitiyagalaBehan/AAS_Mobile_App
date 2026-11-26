@@ -4,22 +4,31 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import BottomTabFamily from "./BottomTabNavigatorFamily";
 import CustomDrawerContent from "./CustomDrawerContent";
 import InboxStackNavigator from "./InboxStackNavigator";
-import { DrawerParamListFamily } from "./types";
+import { DrawerMenuItem, DrawerParamListFamily } from "./types";
 import { useAuth } from "../context/AuthContext";
 import { useAutoLogout } from "../../hooks/useAutoLogout";
 import { RFPercentage } from "react-native-responsive-fontsize";
 
 const Drawer = createDrawerNavigator<DrawerParamListFamily>();
 
-export default function DrawerNavigatorFamily() {
-  const { userData } = useAuth();
+// What an adviser sees after opening a Family Group account; clients have no menu items here
+const ADVISER_MENU_ITEMS: DrawerMenuItem[] = [
+  { label: "Signing requests", icon: "create", screen: "MainTabs", tab: "ESigning" },
+  { label: "Message this client", icon: "mail", screen: "Inbox", tab: "NewMessage" },
+];
 
-  useAutoLogout();
+export default function DrawerNavigatorFamily() {
+  const { userData, viewingClient } = useAuth();
+
+  useAutoLogout(!viewingClient);
 
   return (
     <Drawer.Navigator
       drawerContent={(props) => (
-        <CustomDrawerContent {...props} menuItems={[]} />
+        <CustomDrawerContent
+          {...props}
+          menuItems={viewingClient ? ADVISER_MENU_ITEMS : []}
+        />
       )}
       screenOptions={{
         drawerPosition: "right",

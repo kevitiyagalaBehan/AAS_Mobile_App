@@ -1,0 +1,316 @@
+{
+  "totalAccounts": 24,
+  "fundsUnderManagement": 42412519.5,
+  "filters": [
+    {
+      "key": "all",
+      "label": "All",
+      "count": 24
+    },
+    {
+      "key": "smsf",
+      "label": "SMSF",
+      "count": 13
+    },
+    {
+      "key": "individual",
+      "label": "Individual",
+      "count": 4
+    },
+    {
+      "key": "company",
+      "label": "Company",
+      "count": 3
+    },
+    {
+      "key": "trust",
+      "label": "Trust",
+      "count": 4
+    }
+  ],
+  "items": [
+    {
+      "accountId": "1001",
+      "accountName": "Anderson Retirement Fund",
+      "accountType": "SMSF",
+      "clientNames": "Paul and Linda Anderson",
+      "balance": 1875420.55,
+      "flags": [
+        {
+          "type": "openQueries",
+          "label": "2 queries",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "accountId": "1002",
+      "accountName": "Bennett Holdings Pty Ltd",
+      "accountType": "Company",
+      "clientNames": "Bennett Holdings Pty Ltd",
+      "balance": 642310,
+      "flags": []
+    },
+    {
+      "accountId": "1003",
+      "accountName": "Blue Gum Super Fund",
+      "accountType": "SMSF",
+      "clientNames": "Greg and Wendy Lawson",
+      "balance": 2934118.2,
+      "flags": [
+        {
+          "type": "highCash",
+          "label": "High cash",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "accountId": "1004",
+      "accountName": "Chen Family Super Fund",
+      "accountType": "SMSF",
+      "clientNames": "David and Amy Chen",
+      "balance": 2050000,
+      "flags": [
+        {
+          "type": "openQueries",
+          "label": "1 query",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "accountId": "1005",
+      "accountName": "Coastal Wealth Super Fund",
+      "accountType": "SMSF",
+      "clientNames": "Tom and Kate Harris",
+      "balance": 4120000,
+      "flags": [
+        {
+          "type": "highCash",
+          "label": "High cash",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "accountId": "1007",
+      "accountName": "Dawson Family Trust",
+      "accountType": "Trust",
+      "clientNames": "Mark and Julie Dawson",
+      "balance": 1210455.3,
+      "flags": [
+        {
+          "type": "overdueJob",
+          "label": "Job overdue",
+          "severity": "danger"
+        }
+      ]
+    },
+    {
+      "accountId": "1006",
+      "accountName": "Demo Superannuation Fund 2020",
+      "accountType": "SMSF",
+      "clientNames": "Isabella Suchocki",
+      "balance": 3696860.69,
+      "flags": []
+    },
+    {
+      "accountId": "1008",
+      "accountName": "Ellis, Margaret",
+      "accountType": "Individual",
+      "clientNames": "Margaret Ellis",
+      "balance": 318900.42,
+      "flags": []
+    },
+    {
+      "accountId": "1009",
+      "accountName": "Fitzgerald Super Fund",
+      "accountType": "SMSF",
+      "clientNames": "Sean Fitzgerald",
+      "balance": 987650,
+      "flags": [
+        {
+          "type": "noModelPortfolio",
+          "label": "No model portfolio",
+          "severity": "info"
+        }
+      ]
+    },
+    {
+      "accountId": "1010",
+      "accountName": "Grant Investments Pty Ltd",
+      "accountType": "Company",
+      "clientNames": "Grant Investments Pty Ltd",
+      "balance": 1534200.75,
+      "flags": [
+        {
+          "type": "openQueries",
+          "label": "1 query",
+          "severity": "warning"
+        },
+        {
+          "type": "highCash",
+          "label": "High cash",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "accountId": "1011",
+      "accountName": "Harbourside Super Fund",
+      "accountType": "SMSF",
+      "clientNames": "Nick and Sarah Patel",
+      "balance": 2245780.1,
+      "flags": []
+    },
+    {
+      "accountId": "1012",
+      "accountName": "Ivanov Family Trust",
+      "accountType": "Trust",
+      "clientNames": "Alex Ivanov",
+      "balance": 756330,
+      "flags": []
+    },
+    {
+      "accountId": "1013",
+      "accountName": "Jensen, Peter",
+      "accountType": "Individual",
+      "clientNames": "Peter Jensen",
+      "balance": 204115.9,
+      "flags": [
+        {
+          "type": "openQueries",
+          "label": "3 queries",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "accountId": "1014",
+      "accountName": "Kingfisher Super Fund",
+      "accountType": "SMSF",
+      "clientNames": "Robert and Helen King",
+      "balance": 3312004.45,
+      "flags": []
+    },
+    {
+      "accountId": "1015",
+      "accountName": "Lee Superannuation Fund",
+      "accountType": "SMSF",
+      "clientNames": "Daniel and Grace Lee",
+      "balance": 1678900,
+      "flags": [
+        {
+          "type": "overdueJob",
+          "label": "Job overdue",
+          "severity": "danger"
+        }
+      ]
+    },
+    {
+      "accountId": "1016",
+      "accountName": "Morgan Discretionary Trust",
+      "accountType": "Trust",
+      "clientNames": "Emma Morgan",
+      "balance": 2089340.6,
+      "flags": []
+    },
+    {
+      "accountId": "1017",
+      "accountName": "Nguyen Retirement Fund",
+      "accountType": "SMSF",
+      "clientNames": "Minh and Lan Nguyen",
+      "balance": 1123678.25,
+      "flags": []
+    },
+    {
+      "accountId": "1018",
+      "accountName": "O'Brien, Catherine",
+      "accountType": "Individual",
+      "clientNames": "Catherine O'Brien",
+      "balance": 476210,
+      "flags": []
+    },
+    {
+      "accountId": "1019",
+      "accountName": "Parker Super Fund",
+      "accountType": "SMSF",
+      "clientNames": "James and Olivia Parker",
+      "balance": 2567430.8,
+      "flags": [
+        {
+          "type": "highCash",
+          "label": "High cash",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "accountId": "1020",
+      "accountName": "Quinn Family Trust",
+      "accountType": "Trust",
+      "clientNames": "Liam Quinn",
+      "balance": 934500,
+      "flags": [
+        {
+          "type": "openQueries",
+          "label": "1 query",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "accountId": "1021",
+      "accountName": "Ridgeway Pty Ltd",
+      "accountType": "Company",
+      "clientNames": "Ridgeway Pty Ltd",
+      "balance": 2837333.09,
+      "flags": []
+    },
+    {
+      "accountId": "1022",
+      "accountName": "Sanders Super Fund",
+      "accountType": "SMSF",
+      "clientNames": "Mike and Jo Sanders",
+      "balance": 1456870.4,
+      "flags": []
+    },
+    {
+      "accountId": "1023",
+      "accountName": "Thompson, Ruth",
+      "accountType": "Individual",
+      "clientNames": "Ruth Thompson",
+      "balance": 271990,
+      "flags": [
+        {
+          "type": "noModelPortfolio",
+          "label": "No model portfolio",
+          "severity": "info"
+        }
+      ]
+    },
+    {
+      "accountId": "1024",
+      "accountName": "Wattle Grove Super Fund",
+      "accountType": "SMSF",
+      "clientNames": "Chris and Anna Walsh",
+      "balance": 3088120,
+      "flags": [
+        {
+          "type": "overdueJob",
+          "label": "Job overdue",
+          "severity": "danger"
+        },
+        {
+          "type": "openQueries",
+          "label": "2 queries",
+          "severity": "warning"
+        }
+      ]
+    }
+  ],
+  "page": 1,
+  "pageSize": 50,
+  "totalCount": 24
+}

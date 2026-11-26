@@ -15,6 +15,9 @@ export type AuthContextType = {
   setLoggedInUser: (user: LinkedUsers | null) => void;
   pendingNavigation: PendingNavigation;
   setPendingNavigation: (nav: PendingNavigation) => void;
+  // The client account an adviser has opened, or null on the adviser dashboard
+  viewingClient: ViewingClient | null;
+  setViewingClient: React.Dispatch<React.SetStateAction<ViewingClient | null>>;
 
   resetAuthState: () => void;
 };
@@ -43,7 +46,8 @@ export type RootStackParamList = {
 // Bottom Tab Navigation
 export type BottomTabParamListAdviser = {
   AdviserHome: undefined;
-  AdviserAccounts: undefined;
+  // focusSearch changes on each header search tap so the field focuses every time
+  AdviserAccounts: { focusSearch?: number } | undefined;
   AdviserJobs: undefined;
   AdviserQueries: undefined;
   AdviserInbox: undefined;
@@ -708,3 +712,53 @@ export interface AdviserBadgeCounts {
   unansweredQueries: number;
   unreadInbox: number;
 }
+
+// ---- Adviser accounts (response shapes from the AdviserAccounts endpoints) ----
+
+export type AccountFlagSeverity = "info" | "warning" | "danger";
+
+export interface AdviserAccountFlag {
+  type: string;
+  label: string;
+  severity: AccountFlagSeverity;
+}
+
+export interface AdviserAccount {
+  accountId: string;
+  accountName: string;
+  accountType: string;
+  clientNames: string | null;
+  balance: number | null;
+  flags: AdviserAccountFlag[];
+}
+
+export interface AdviserAccountFilter {
+  key: string;
+  label: string;
+  count: number | null;
+}
+
+export interface AdviserAccountList {
+  totalAccounts: number;
+  fundsUnderManagement: number;
+  filters: AdviserAccountFilter[];
+  items: AdviserAccount[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+
+export interface AdviserRecentAccount {
+  accountId: string;
+  accountName: string;
+  accountType: string;
+  clientNames: string | null;
+  balance: number | null;
+  viewedAt: string;
+}
+
+// An account the adviser has opened in the client layout
+export type ViewingClient = Pick<
+  AdviserAccount,
+  "accountId" | "accountName" | "accountType" | "clientNames"
+>;

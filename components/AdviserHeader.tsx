@@ -48,7 +48,7 @@ export default function AdviserHeader() {
         <TouchableOpacity
           style={styles.iconButton}
           // Search lives on the Accounts tab for now
-          onPress={() => navigation.navigate("AdviserAccounts")}
+          onPress={() => navigation.navigate("AdviserAccounts", { focusSearch: Date.now() })}
           activeOpacity={0.7}
           hitSlop={6}
           accessibilityRole="button"

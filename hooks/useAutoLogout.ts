@@ -5,7 +5,9 @@ import { useAuth } from "../src/context/AuthContext";
 
 const AUTO_LOGOUT_DELAY = 4 * 60 * 1000;
 
-export const useAutoLogout = () => {
+// enabled is false for a client layout an adviser has opened: the adviser layout
+// underneath already runs the timer, and two would log out twice
+export const useAutoLogout = (enabled = true) => {
   const appState = useRef(AppState.currentState);
   const backgroundTime = useRef<number | null>(null);
   const { userData, resetAuthState } = useAuth();
@@ -40,7 +42,7 @@ export const useAutoLogout = () => {
   };
 
   useEffect(() => {
-    if (!userData?.authToken) return;
+    if (!enabled || !userData?.authToken) return;
 
     const appStateSub = AppState.addEventListener(
       "change",
@@ -50,5 +52,5 @@ export const useAutoLogout = () => {
     return () => {
       appStateSub.remove();
     };
-  }, [userData?.authToken]);
+  }, [userData?.authToken, enabled]);
 };

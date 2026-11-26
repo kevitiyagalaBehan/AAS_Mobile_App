@@ -20,15 +20,26 @@ const MENU_ITEMS: DrawerMenuItem[] = [
   { label: "Documents", icon: "documents", screen: "MainTabs", tab: "Documents" },
 ];
 
-export default function DrawerNavigatorOther() {
-  const { userData } = useAuth();
+// What an adviser sees after opening a client account
+const ADVISER_MENU_ITEMS: DrawerMenuItem[] = [
+  { label: "Member details", icon: "person-circle", screen: "PersonalDetails" },
+  { label: "Fund details", icon: "list-circle", screen: "Details" },
+  { label: "Bank account", icon: "card", screen: "Transactions" },
+  { label: "Documents", icon: "documents", screen: "MainTabs", tab: "Documents" },
+  { label: "Signing requests", icon: "create", screen: "MainTabs", tab: "ESigning" },
+  { label: "Message this client", icon: "mail", screen: "Inbox", tab: "NewMessage" },
+];
 
-  useAutoLogout();
+export default function DrawerNavigatorOther() {
+  const { userData, viewingClient } = useAuth();
+  const menuItems = viewingClient ? ADVISER_MENU_ITEMS : MENU_ITEMS;
+
+  useAutoLogout(!viewingClient);
 
   return (
     <Drawer.Navigator
       drawerContent={(props) => (
-        <CustomDrawerContent {...props} menuItems={MENU_ITEMS} />
+        <CustomDrawerContent {...props} menuItems={menuItems} />
       )}
       screenOptions={{
         //drawerType: "back",

@@ -9,6 +9,7 @@ import { RFPercentage } from "react-native-responsive-fontsize";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { getInitials } from "../../components/UserAvatar";
 import { useAuth } from "../context/AuthContext";
+import { useClientView } from "../../hooks/useClientView";
 import { handleLogout } from "../utils/logout";
 import { getLinkedUsers, revokePin, requestPasswordReset } from "../utils/pimsApi";
 import {
@@ -21,8 +22,14 @@ import { DrawerMenuItem } from "./types";
 import { colors } from "../theme/colors";
 
 export default function CustomDrawerContent(props: any) {
-  const { userData, setCurrentUserName, currentUserName, resetAuthState } =
-    useAuth();
+  const {
+    userData,
+    setCurrentUserName,
+    currentUserName,
+    currentAccountName,
+    resetAuthState,
+  } = useAuth();
+  const { viewingClient, exitClient } = useClientView();
   const { navigation, state } = props;
   const menuItems: DrawerMenuItem[] = props.menuItems ?? [];
   const drawerStatus = useDrawerStatus();
@@ -201,6 +208,39 @@ export default function CustomDrawerContent(props: any) {
           </View>
         </View>
 
+        {/* An adviser inside a client account: which client, and the way back */}
+        {viewingClient && (
+          <View style={styles.section}>
+            <View style={styles.clientInfo}>
+              <Text style={styles.clientLabel}>Viewing client</Text>
+              <Text style={styles.clientName} numberOfLines={2}>
+                {currentAccountName || viewingClient.accountName}
+              </Text>
+              {!!viewingClient.clientNames && (
+                <Text style={styles.subtitle} numberOfLines={1}>
+                  {viewingClient.clientNames}
+                </Text>
+              )}
+            </View>
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() => {
+                navigation.closeDrawer();
+                exitClient();
+              }}
+              activeOpacity={0.6}
+              accessibilityRole="button"
+            >
+              <View style={styles.backRow}>
+                <Ionicons name="home-outline" size={18} color={colors.link} />
+                <Text style={[styles.rowText, styles.backText]}>
+                  Back to adviser dashboard
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {menuItems.length > 0 && (
           <View style={styles.section}>
             {/* Each menu item is a full-screen drawer screen; nothing is
@@ -301,6 +341,32 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 14,
+  },
+  clientInfo: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  clientLabel: {
+    fontSize: RFPercentage(1.6),
+    fontWeight: "bold",
+    color: "#6B7280",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  clientName: {
+    fontSize: RFPercentage(2.1),
+    fontWeight: "bold",
+    color: colors.primary,
+    marginTop: 4,
+  },
+  backRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  backText: {
+    color: colors.link,
   },
   rowFocused: {
     backgroundColor: colors.primarySoft,
