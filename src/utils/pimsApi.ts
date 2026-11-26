@@ -36,6 +36,7 @@ import {
   PracticeInfo,
   RevokePinResult,
   ClientProfile,
+  UserRole,
 } from "../navigation/types";
 import Constants from "expo-constants";
 import { Base64 } from "js-base64";
@@ -125,11 +126,29 @@ const parsePractice = (practice: any): PracticeInfo | null => {
   };
 };
 
-const parseLogin = (data: any): LoginResponse => ({
-  authToken: data.auth_token,
-  accountId: data.account_id,
-  accountType: data.account_type,
-});
+// Practice staff roles that open the adviser layout. Compared without case, spaces or
+// punctuation, so "Client Services", "client_services" and "ClientServices" all match.
+const PRACTICE_ROLES = new Set(["adviser", "paraplanner", "clientservices"]);
+
+// A missing or unknown role is treated as a client, so older servers keep working.
+const parseUserRole = (role: string | null): UserRole =>
+  role && PRACTICE_ROLES.has(role.toLowerCase().replace(/[^a-z]/g, ""))
+    ? "Adviser"
+    : "Client";
+
+const parseLogin = (data: any): LoginResponse => {
+  // A single string: "Adviser", "Paraplanner", "Client Services", or a client role
+  const role =
+    typeof data.role === "string" && data.role.trim() !== "" ? data.role.trim() : null;
+  return {
+    authToken: data.auth_token,
+    accountId: data.account_id ?? "",
+    accountType: data.account_type ?? "",
+    role,
+    userRole: parseUserRole(role),
+    firstName: data.user?.first_name ?? null,
+  };
+};
 
 export const loginUser = async (
   username: string,

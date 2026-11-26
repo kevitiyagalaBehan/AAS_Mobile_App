@@ -37,9 +37,18 @@ export type RootStackParamList = {
   PensionDetail: { memberName?: string } | undefined;
   Other: { screen?: string; params?: object };
   Family: { screen?: string; params?: object };
+  Adviser: { screen?: string; params?: object } | undefined;
 };
 
 // Bottom Tab Navigation
+export type BottomTabParamListAdviser = {
+  AdviserHome: undefined;
+  AdviserAccounts: undefined;
+  AdviserJobs: undefined;
+  AdviserQueries: undefined;
+  AdviserInbox: undefined;
+};
+
 export type BottomTabParamListOther = {
   HomeOther: { authToken: string; accountId: string };
   Portfolio: undefined;
@@ -61,6 +70,10 @@ export type DrawerParamListOther = {
   Details: undefined;
   Transactions: undefined;
   Inbox: undefined;
+};
+
+export type DrawerParamListAdviser = {
+  MainTabs: undefined;
 };
 
 export type DrawerMenuItem = {
@@ -129,10 +142,19 @@ export interface LinkedUsers {
   userId?: string;
 }
 
+// Which layout the user gets. "Adviser" covers all practice staff (Adviser, Paraplanner,
+// Client Services). Everyone else is a client and is routed by accountType.
+export type UserRole = "Client" | "Adviser";
+
 export interface LoginResponse {
   authToken: string;
+  // Advisers don't open a single account at login, so these can be empty for them
   accountId: string;
   accountType: string;
+  // Role exactly as the server sent it, e.g. "Paraplanner", for later per-role rules
+  role: string | null;
+  userRole: UserRole;
+  firstName: string | null;
 }
 
 // Sent with login, PIN login, PIN setup and device registration.
@@ -617,4 +639,72 @@ export interface InboxMessage {
   Date: string;
   UserId: string;
   Attachments: Attachment[];
+}
+
+// ---- Adviser dashboard (response shapes from the AdviserDashboard endpoints) ----
+
+export interface AdviserFinancialYear {
+  id: number;
+  label: string;
+}
+
+// Which dashboard group a stage counts towards
+export type JobPhase = "notStarted" | "inProgress" | "lodged";
+
+export interface JobStage {
+  code: string;
+  name: string;
+  phase: JobPhase;
+  sortOrder: number;
+}
+
+export interface JobTypeSummary {
+  jobTypeName: string;
+  // Keyed by JobStage.code
+  stageCounts: Record<string, number>;
+  total: number;
+}
+
+export interface AdviserJobSummary {
+  financialYear: AdviserFinancialYear;
+  availableFinancialYears: AdviserFinancialYear[];
+  stages: JobStage[];
+  jobTypes: JobTypeSummary[];
+}
+
+export interface EntityTypeSummary {
+  entityType: string;
+  clientCount: number;
+  totalBalance: number;
+  averageBalance: number;
+}
+
+export interface PortfolioCheck {
+  checkKey: string;
+  label: string;
+  clientCount: number;
+}
+
+export interface AdviserTopInvestment {
+  investmentCode: string;
+  investmentName: string | null;
+  marketValue: number;
+  clientCount: number;
+  averageValue: number;
+}
+
+export interface AdviserInvestmentOverview {
+  asAtDate: string;
+  fundsUnderManagement: number;
+  portfolioClients: number;
+  averageBalance: number;
+  entityTypes: EntityTypeSummary[];
+  portfolioChecks: PortfolioCheck[];
+  topTenInvestments: AdviserTopInvestment[];
+}
+
+export interface AdviserBadgeCounts {
+  unreadNotifications: number;
+  unansweredQueries: number;
+  unreadInbox: number;
 }

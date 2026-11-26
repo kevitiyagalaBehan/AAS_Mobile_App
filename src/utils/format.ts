@@ -14,7 +14,16 @@ export const formatCurrency = (value: number, decimals = 2) =>
     maximumFractionDigits: decimals,
   })}`;
 
-export const formatShortDate = (value: string | number | Date) =>
+// "$12.60M", "$431K", "$950" for tight spaces like list rows
+export const formatCompactCurrency = (value: number) => {
+  const abs = Math.abs(value);
+  const sign = value < 0 ? "-" : "";
+  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(2)}M`;
+  if (abs >= 1_000) return `${sign}$${Math.round(abs / 1_000)}K`;
+  return `${sign}$${Math.round(abs)}`;
+};
+
+export const formatShortDate =(value: string | number | Date) =>
   new Date(value).toLocaleDateString("en-AU", {
     day: "numeric",
     month: "short",

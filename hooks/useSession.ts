@@ -11,6 +11,7 @@ import {
   RootStackParamList,
 } from "../src/navigation/types";
 import { savePractice } from "../src/utils/practiceStorage";
+import { homeRoute } from "../src/utils/userRoute";
 
 export const useSession = () => {
   const {
@@ -28,9 +29,9 @@ export const useSession = () => {
     login: LoginResponse,
     practice: PracticeInfo | null
   ): Promise<LinkedUsers | null> => {
-    const { authToken, accountId, accountType } = login;
+    const { authToken } = login;
 
-    setUserData({ authToken, accountId, accountType });
+    setUserData(login);
     await savePractice(practice);
 
     const linkedUser = await getLinkedUsers(authToken);
@@ -51,8 +52,16 @@ export const useSession = () => {
     return linkedUser;
   };
 
-  const enterApp = (accountType: string) => {
-    const userType = accountType === "Family Group" ? "Family" : "Other";
+  const enterApp = (login: Pick<LoginResponse, "userRole" | "accountType">) => {
+    const userType = homeRoute(login);
+
+    // A notification tapped before login opens a client Inbox. Advisers don't have
+    // that screen yet, so they just land on their dashboard.
+    if (userType === "Adviser") {
+      setPendingNavigation(null);
+      navigation.replace("Adviser");
+      return;
+    }
 
     if (pendingNavigation) {
       navigation.replace(userType, {});
