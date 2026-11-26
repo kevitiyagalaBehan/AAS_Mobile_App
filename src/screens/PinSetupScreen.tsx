@@ -45,7 +45,7 @@ export default function PinSetupScreen() {
 
   const finish = () => {
     if (mode === "afterLogin" && userData) {
-      enterApp(userData.accountType);
+      enterApp(userData);
     } else {
       navigation.goBack();
     }

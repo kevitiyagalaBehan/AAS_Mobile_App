@@ -80,7 +80,7 @@ export default function PinLoginScreen() {
             await updateDeviceToken(result.newDeviceToken);
           }
           await startSession(result.login, result.practice);
-          enterApp(result.login.accountType);
+          enterApp(result.login);
           return;
 
         case "invalid":

@@ -25,6 +25,7 @@ import { DrawerActions, useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { RootStackParamList, AccountOption } from "../src/navigation/types";
 import { colors } from "../src/theme/colors";
+import { clientRoute } from "../src/utils/userRoute";
 
 type HeaderProps = {
   refreshTrigger?: number;
@@ -193,7 +194,8 @@ export default function Header({ refreshTrigger }: HeaderProps) {
 
     navigation.reset({
       index: 0,
-      routes: [{ name: accountType === "Family Group" ? "Family" : "Other" }],
+      // Switching accounts always stays inside a client layout, so only the account type matters
+      routes: [{ name: clientRoute(accountType) }],
     });
   };
 

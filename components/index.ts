@@ -38,4 +38,6 @@ export { default as MessageComposer } from "./MessageComposer";
 export { default as AddRecipientsSheet } from "./AddRecipientsSheet";
 export { default as Document } from "./Document";
 export { default as PinPad } from "./PinPad";
-
+export { default as AdviserHeader } from "./AdviserHeader";
+export { default as AdviserJobSummary } from "./AdviserJobSummary";
+export { default as AdviserInvestmentOverview } from "./AdviserInvestmentOverview";

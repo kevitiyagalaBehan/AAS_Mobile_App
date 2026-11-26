@@ -13,6 +13,8 @@ import MemberBalanceDetailScreen from "./src/screens/MemberBalanceDetailScreen";
 import PensionDetailScreen from "./src/screens/PensionDetailScreen";
 import DrawerNavigatorOther from "./src/navigation/DrawerNavigatorOther";
 import DrawerNavigatorFamily from "./src/navigation/DrawerNavigatorFamily";
+import DrawerNavigatorAdviser from "./src/navigation/DrawerNavigatorAdviser";
+import { clientRoute, homeRoute } from "./src/utils/userRoute";
 import { useVersionCheck } from "./hooks/useVersionCheck";
 import UpdateModal from "./components/UpdateModal";
 import { useEffect, useState } from "react";
@@ -59,7 +61,7 @@ function AppNavigator() {
 
   const getInitialScreen = () => {
     if (!userData) return loginRoute;
-    return userData.accountType === "Family Group" ? "Family" : "Other";
+    return homeRoute(userData);
   };
 
   return (
@@ -94,6 +96,11 @@ function AppNavigator() {
           options={{ headerShown: false }}
         />
         <Stack.Screen
+          name="Adviser"
+          component={DrawerNavigatorAdviser}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
           name="PdfViewer"
           component={PdfViewerScreen}
           options={{ headerShown: false }}
@@ -121,8 +128,8 @@ function AppNavigator() {
 function AppInner() {
   const { userData, setPendingNavigation } = useAuth();
   const isLoggedIn = !!userData?.authToken;
-  const userType =
-    userData?.accountType === "Family Group" ? "Family" : "Other";
+  const isAdviser = userData?.userRole === "Adviser";
+  const userType = clientRoute(userData?.accountType);
 
   useEffect(() => {
     const responseListener =
@@ -155,6 +162,12 @@ function AppInner() {
           return;
         }
 
+        // Inbox notifications open the client Inbox, which advisers don't have yet
+        if (isAdviser) {
+          navigationRef.navigate("Adviser");
+          return;
+        }
+
         navigationRef.navigate(
           userType,
           inboxRoute(
@@ -171,7 +184,7 @@ function AppInner() {
     return () => {
       responseListener.remove();
     };
-  }, [isLoggedIn, userType]);
+  }, [isLoggedIn, isAdviser, userType]);
 
   return (
     <NavigationContainer ref={navigationRef} theme={navigationTheme}>
