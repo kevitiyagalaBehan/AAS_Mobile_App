@@ -712,10 +712,11 @@ export interface AdviserBadgeCounts {
   unreadInbox: number;
 }
 
-// ---- Adviser accounts (response shapes from the AdviserAccounts endpoints) ----
+// ---- Adviser accounts (response shape from GET /AdviserDashboard/AccountsSummary) ----
 
 export type AccountFlagSeverity = "info" | "warning" | "danger";
 
+// Badges under the balance. The server doesn't send these yet.
 export interface AdviserAccountFlag {
   type: string;
   label: string;
@@ -724,11 +725,17 @@ export interface AdviserAccountFlag {
 
 export interface AdviserAccount {
   accountId: string;
+  accountCode: string | null;
   accountName: string;
   accountType: string;
   clientNames: string | null;
   balance: number | null;
-  flags: AdviserAccountFlag[];
+  cashBalance: number | null;
+  // When this adviser last opened the account; fills Recently viewed
+  lastViewedAt: string | null;
+  practiceId: string | null;
+  practiceName: string | null;
+  flags?: AdviserAccountFlag[];
 }
 
 export interface AdviserAccountFilter {
@@ -737,23 +744,12 @@ export interface AdviserAccountFilter {
   count: number | null;
 }
 
-export interface AdviserAccountList {
+// Every account in the practice in one response; the app searches and filters locally
+export interface AdviserAccountsSummary {
   totalAccounts: number;
   fundsUnderManagement: number;
   filters: AdviserAccountFilter[];
   items: AdviserAccount[];
-  page: number;
-  pageSize: number;
-  totalCount: number;
-}
-
-export interface AdviserRecentAccount {
-  accountId: string;
-  accountName: string;
-  accountType: string;
-  clientNames: string | null;
-  balance: number | null;
-  viewedAt: string;
 }
 
 // An account the adviser has opened in the client layout

@@ -2,28 +2,14 @@
 // Endpoints switched on in ADVISER_MOCKS (devFlags.ts) return dummy data instead.
 import Constants from "expo-constants";
 import {
-  AdviserAccountList,
+  AdviserAccountsSummary,
   AdviserBadgeCounts,
   AdviserInvestmentOverview,
   AdviserJobSummary,
-  AdviserRecentAccount,
   JobPhase,
 } from "../navigation/types";
 import { ADVISER_MOCKS } from "./devFlags";
-import {
-  mockAccounts,
-  mockBadgeCounts,
-  mockMarkViewed,
-  mockRecentlyViewed,
-} from "./adviserMocks";
-
-export type AccountQuery = {
-  search?: string;
-  // A key from AdviserAccountList.filters; "all" for no filter
-  filter?: string;
-  page?: number;
-  pageSize?: number;
-};
+import { mockBadgeCounts } from "./adviserMocks";
 
 const apiBaseUrl = Constants.expoConfig?.extra?.apiBaseUrl as string;
 
@@ -83,44 +69,19 @@ export const getAdviserInvestmentOverview = (
 ): Promise<AdviserInvestmentOverview | null> =>
   getJson("/AdviserDashboard/InvestmentOverview", authToken);
 
+// Every account in the practice, with filter counts and each account's lastViewedAt
 export const getAdviserAccounts = (
-  authToken: string,
-  { search = "", filter = "all", page = 1, pageSize = 50 }: AccountQuery
-): Promise<AdviserAccountList | null> => {
-  if (ADVISER_MOCKS.accounts) return mock(mockAccounts(search, filter, page, pageSize));
-  const params = new URLSearchParams({
-    filter,
-    page: String(page),
-    pageSize: String(pageSize),
-  });
-  if (search.trim()) params.set("search", search.trim());
-  return getJson(`/AdviserAccounts?${params}`, authToken);
-};
+  authToken: string
+): Promise<AdviserAccountsSummary | null> =>
+  getJson("/AdviserDashboard/AccountsSummary", authToken);
 
-export const getAdviserRecentlyViewed = (
-  authToken: string,
-  limit = 10
-): Promise<AdviserRecentAccount[] | null> =>
-  ADVISER_MOCKS.recentlyViewed
-    ? mock(mockRecentlyViewed(limit))
-    : getJson(`/AdviserAccounts/RecentlyViewed?limit=${limit}`, authToken);
-
-// Records that the adviser opened this account, for the Recently viewed list
+// Records that the adviser opened this account, for Recently viewed. The server answers
+// true or false; a failure is only logged, since it mustn't stop the account opening.
 export const markAccountViewed = async (authToken: string, accountId: string) => {
-  if (ADVISER_MOCKS.recentlyViewed) {
-    mockMarkViewed(accountId);
-    return;
-  }
-  const path = `/AdviserAccounts/${encodeURIComponent(accountId)}/Viewed`;
-  try {
-    const response = await fetch(`${apiBaseUrl}${path}`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${authToken}` },
-    });
-    if (!response.ok) console.error(`POST ${path} failed: ${response.status}`);
-  } catch (error) {
-    console.error(`POST ${path} failed:`, error);
-  }
+  const path = `/AdviserDashboard/ViewAccount/${encodeURIComponent(accountId)}`;
+  // getJson already logs a failed request
+  const recorded = await getJson<boolean>(path, authToken);
+  if (recorded === false) console.warn(`GET ${path} returned false`);
 };
 
 export const getAdviserBadgeCounts = (

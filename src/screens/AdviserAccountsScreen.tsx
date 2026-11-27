@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   StyleSheet,
   View,
@@ -17,24 +17,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext";
 import { useRefreshTrigger } from "../../hooks/useRefreshTrigger";
-import {
-  getAdviserAccounts,
-  getAdviserRecentlyViewed,
-  markAccountViewed,
-} from "../utils/adviserApi";
+import { getAdviserAccounts, markAccountViewed } from "../utils/adviserApi";
 import { formatCompactCurrency } from "../utils/format";
 import {
   AccountFlagSeverity,
   AdviserAccount,
-  AdviserAccountList,
-  AdviserRecentAccount,
-  ViewingClient,
+  AdviserAccountsSummary,
 } from "../navigation/types";
 import { useClientView } from "../../hooks/useClientView";
 import { colors } from "../theme/colors";
 
-const PAGE_SIZE = 50;
-const SEARCH_DELAY_MS = 300;
+const RECENT_LIMIT = 10;
 
 const FLAG_COLORS: Record<AccountFlagSeverity, { bg: string; fg: string }> = {
   info: { bg: "#E6EEFB", fg: "#2F5DB3" },
@@ -45,8 +38,8 @@ const FLAG_COLORS: Record<AccountFlagSeverity, { bg: string; fg: string }> = {
 // "Chen Family Super Fund" -> "CF", "Ellis, Margaret" -> "EM"
 const accountInitials = (name: string) =>
   name
-    .replace(/[^A-Za-z\s]/g, "")
-    .split(/\s+/)
+    .replace(/[^A-Za-zs]/g, "")
+    .split(/s+/)
     .filter(Boolean)
     .slice(0, 2)
     .map((word) => word[0].toUpperCase())
@@ -57,6 +50,12 @@ const formatBalance = (balance: number | null) =>
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
+// Filter keys are lower case ("smsf"); account types are "SMSF", "Trust" etc.
+const typeKey = (value: string) => value.toLowerCase().replace(/[^a-z]/g, "");
+
+// lastViewedAt is Australian local time with no offset, which Date.parse reads as device time
+const viewedTime = (a: AdviserAccount) => (a.lastViewedAt ? Date.parse(a.lastViewedAt) || 0 : 0);
+
 export default function AdviserAccountsScreen() {
   const { userData } = useAuth();
   const authToken = userData?.authToken;
@@ -65,78 +64,75 @@ export default function AdviserAccountsScreen() {
   const { openClient } = useClientView();
 
   const [searchText, setSearchText] = useState("");
-  const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
-  const [data, setData] = useState<AdviserAccountList | null>(null);
-  const [items, setItems] = useState<AdviserAccount[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [data, setData] = useState<AdviserAccountsSummary | null>(null);
   const [error, setError] = useState(false);
-  const [recent, setRecent] = useState<AdviserRecentAccount[]>([]);
 
-  // Ignores responses for an older search or filter that arrive late
-  const requestId = useRef(0);
-
-  const loadRecent = useCallback(() => {
+  const load = useCallback(async () => {
     if (!authToken) return;
-    getAdviserRecentlyViewed(authToken).then((result) => {
-      if (result) setRecent(result);
-    });
+    const result = await getAdviserAccounts(authToken);
+    if (result) setData(result);
+    setError(!result);
   }, [authToken]);
 
-  const { refreshTrigger, refreshing, onRefresh } = useRefreshTrigger(loadRecent);
+  const { refreshing, onRefresh } = useRefreshTrigger(load);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setSearch(searchText.trim()), SEARCH_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [searchText]);
+  // Also runs on the way back from a client, so Recently viewed picks up that visit
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
-  useFocusEffect(loadRecent);
+  const search = searchText.trim().toLowerCase();
 
-  useEffect(() => {
+  // The server sends every account, so search and filter run here
+  const items = useMemo(
+    () =>
+      (data?.items ?? [])
+        .filter(
+          (a) =>
+            (filter === "all" || typeKey(a.accountType) === typeKey(filter)) &&
+            (!search ||
+              [a.accountName, a.clientNames, a.accountCode].some((v) =>
+                v?.toLowerCase().includes(search)
+              ))
+        )
+        .sort((a, b) => a.accountName.localeCompare(b.accountName)),
+    [data, filter, search]
+  );
+
+  const recent = useMemo(
+    () =>
+      (data?.items ?? [])
+        .filter((a) => a.lastViewedAt)
+        .sort((a, b) => viewedTime(b) - viewedTime(a))
+        .slice(0, RECENT_LIMIT),
+    [data]
+  );
+
+  // Hide empty account types, but keep the selected one so it can be switched off
+  const filters = (data?.filters ?? []).filter(
+    (f) => f.key === "all" || f.key === filter || f.count !== 0
+  );
+
+  const openAccount = (account: AdviserAccount) => {
     if (!authToken) return;
-    const id = ++requestId.current;
-    setLoading(true);
-    setError(false);
-    getAdviserAccounts(authToken, { search, filter, page: 1, pageSize: PAGE_SIZE }).then(
-      (result) => {
-        if (id !== requestId.current) return;
-        setLoading(false);
-        if (!result) {
-          setError(true);
-          return;
-        }
-        setData(result);
-        setItems(result.items);
+    markAccountViewed(authToken, account.accountId);
+    // Moves it to the front of Recently viewed now; the reload on return confirms it
+    const viewedAt = new Date().toISOString();
+    setData((prev) =>
+      prev && {
+        ...prev,
+        items: prev.items.map((a) => (a.accountId === account.accountId ? { ...a, lastViewedAt: viewedAt } : a)),
       }
     );
-  }, [authToken, search, filter, refreshTrigger]);
-
-  const hasMore = !!data && items.length < data.totalCount;
-
-  const loadMore = () => {
-    if (!authToken || !data || !hasMore || loading || loadingMore) return;
-    const id = requestId.current;
-    setLoadingMore(true);
-    getAdviserAccounts(authToken, {
-      search,
-      filter,
-      page: data.page + 1,
-      pageSize: PAGE_SIZE,
-    }).then((result) => {
-      if (id !== requestId.current) return;
-      setLoadingMore(false);
-      if (!result) return;
-      setData(result);
-      setItems((prev) => [...prev, ...result.items]);
+    openClient({
+      accountId: account.accountId,
+      accountName: account.accountName,
+      accountType: account.accountType,
+      clientNames: account.clientNames,
     });
-  };
-
-  const openAccount = (account: ViewingClient) => {
-    if (!authToken) return;
-    // Recently viewed reloads when this tab is back in view
-    markAccountViewed(authToken, account.accountId);
-    openClient(account);
   };
 
   const showRecent = !search && filter === "all" && recent.length > 0;
@@ -157,12 +153,15 @@ export default function AdviserAccountsScreen() {
           {item.accountName}
         </Text>
         <Text style={styles.accountSub} numberOfLines={1}>
-          {item.accountType}
-          {item.clientNames && item.clientNames !== item.accountName
-            ? ` · ${item.clientNames}`
-            : ""}
+          {[
+            item.accountType,
+            item.accountCode,
+            item.clientNames !== item.accountName ? item.clientNames : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
         </Text>
-        {item.flags.length > 0 && (
+        {!!item.flags?.length && (
           <View style={styles.flags}>
             {item.flags.map((flag) => {
               const c = FLAG_COLORS[flag.severity] ?? FLAG_COLORS.info;
@@ -212,14 +211,14 @@ export default function AdviserAccountsScreen() {
     </View>
   ) : null;
 
-  const emptyState = loading ? (
+  const emptyState = !data && !error ? (
     <ActivityIndicator style={styles.placeholder} color={colors.primary} />
   ) : (
     <Text style={[styles.placeholder, styles.placeholderText]}>
       {error
         ? "Couldn't load accounts."
         : search
-          ? `No accounts match "${search}".`
+          ? `No accounts match "${searchText.trim()}".`
           : "No accounts."}
     </Text>
   );
@@ -241,7 +240,7 @@ export default function AdviserAccountsScreen() {
             style={styles.searchInput}
             value={searchText}
             onChangeText={setSearchText}
-            placeholder="Search by name or fund"
+            placeholder="Search by name or account code"
             placeholderTextColor="#9CA3AF"
             autoCorrect={false}
             returnKeyType="search"
@@ -259,14 +258,14 @@ export default function AdviserAccountsScreen() {
           )}
         </View>
 
-        {data && data.filters.length > 1 && (
+        {filters.length > 1 && (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.chips}
             keyboardShouldPersistTaps="handled"
           >
-            {data.filters.map((f) => {
+            {filters.map((f) => {
               const selected = f.key === filter;
               return (
                 <TouchableOpacity
@@ -289,18 +288,12 @@ export default function AdviserAccountsScreen() {
       </View>
 
       <FlatList
-        // Current rows stay on screen while a new search or filter loads
         data={items}
         keyExtractor={(item) => item.accountId}
         renderItem={renderAccount}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={emptyState}
-        ListFooterComponent={
-          loadingMore ? <ActivityIndicator style={styles.footer} color={colors.primary} /> : null
-        }
         ItemSeparatorComponent={() => <View style={styles.separator} />}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.5}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -477,8 +470,5 @@ const getStyles = (width: number, height: number) =>
       textAlign: "center",
       fontSize: RFPercentage(1.9),
       color: "#6B7280",
-    },
-    footer: {
-      marginVertical: 12,
     },
   });

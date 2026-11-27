@@ -5,6 +5,4 @@
 export const ADVISER_MOCKS = {
   // Not built on the backend yet
   badgeCounts: true,
-  accounts: true,
-  recentlyViewed: true,
 };
