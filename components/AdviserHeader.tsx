@@ -47,17 +47,6 @@ export default function AdviserHeader() {
       <View style={styles.buttons}>
         <TouchableOpacity
           style={styles.iconButton}
-          // Search lives on the Accounts tab for now
-          onPress={() => navigation.navigate("AdviserAccounts", { focusSearch: Date.now() })}
-          activeOpacity={0.7}
-          hitSlop={6}
-          accessibilityRole="button"
-          accessibilityLabel="Search accounts"
-        >
-          <Ionicons name="search" size={20} color={colors.primary} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.iconButton}
           onPress={() =>
             Alert.alert("Notifications", "Notifications are coming soon.")
           }

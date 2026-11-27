@@ -15,7 +15,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { RFPercentage } from "react-native-responsive-fontsize";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { useAuth } from "../context/AuthContext";
 import { useRefreshTrigger } from "../../hooks/useRefreshTrigger";
 import {
@@ -29,13 +28,10 @@ import {
   AdviserAccount,
   AdviserAccountList,
   AdviserRecentAccount,
-  BottomTabParamListAdviser,
   ViewingClient,
 } from "../navigation/types";
 import { useClientView } from "../../hooks/useClientView";
 import { colors } from "../theme/colors";
-
-type Props = BottomTabScreenProps<BottomTabParamListAdviser, "AdviserAccounts">;
 
 const PAGE_SIZE = 50;
 const SEARCH_DELAY_MS = 300;
@@ -61,12 +57,11 @@ const formatBalance = (balance: number | null) =>
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-export default function AdviserAccountsScreen({ route }: Props) {
+export default function AdviserAccountsScreen() {
   const { userData } = useAuth();
   const authToken = userData?.authToken;
   const { width, height } = useWindowDimensions();
   const styles = getStyles(width, height);
-  const searchRef = useRef<TextInput>(null);
   const { openClient } = useClientView();
 
   const [searchText, setSearchText] = useState("");
@@ -90,11 +85,6 @@ export default function AdviserAccountsScreen({ route }: Props) {
   }, [authToken]);
 
   const { refreshTrigger, refreshing, onRefresh } = useRefreshTrigger(loadRecent);
-
-  // The header search button sends a new focusSearch value on each tap
-  useEffect(() => {
-    if (route.params?.focusSearch) searchRef.current?.focus();
-  }, [route.params?.focusSearch]);
 
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchText.trim()), SEARCH_DELAY_MS);
@@ -248,7 +238,6 @@ export default function AdviserAccountsScreen({ route }: Props) {
         <View style={styles.searchBox}>
           <Ionicons name="search" size={18} color="#6B7280" />
           <TextInput
-            ref={searchRef}
             style={styles.searchInput}
             value={searchText}
             onChangeText={setSearchText}

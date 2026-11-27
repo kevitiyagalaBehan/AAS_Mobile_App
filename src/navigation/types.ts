@@ -46,8 +46,7 @@ export type RootStackParamList = {
 // Bottom Tab Navigation
 export type BottomTabParamListAdviser = {
   AdviserHome: undefined;
-  // focusSearch changes on each header search tap so the field focuses every time
-  AdviserAccounts: { focusSearch?: number } | undefined;
+  AdviserAccounts: undefined;
   AdviserJobs: undefined;
   AdviserQueries: undefined;
   AdviserInbox: undefined;
